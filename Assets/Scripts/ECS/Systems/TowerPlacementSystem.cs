@@ -43,7 +43,7 @@ public class TowerPlacementSystem : BaseSystem
                 else
                 {
                     pos.CostText.text = $"Buy {cost}";
-                    pos.CostText.color = canAfford ? Color.white : Color.red;
+                    pos.CostText.color = canAfford ? Color.black : Color.red;
                 }
             }
         }
