@@ -194,36 +194,8 @@ public class GameManager : MonoBehaviour
     {
         Debug.Log("Рестарт игры...");
         
-        // Сначала уничтожаем все объекты башен
-        if (world != null)
-        {
-            var towers = world.Query<TowerComponent>().ToList();
-            foreach (var tower in towers)
-            {
-                if (tower.Has<UnityObjectComponent>())
-                {
-                    var view = tower.Get<UnityObjectComponent>();
-                    if (view.Obj != null)
-                        Object.Destroy(view.Obj);
-                }
-            }
-        }
-        
-        // Скрываем панель GameOver и кнопку рестарт
-        if (GameOverCanvas != null)
-            GameOverCanvas.SetActive(false);
-        
-        if (RestartButtonObj != null)
-            RestartButtonObj.SetActive(false);
-
-        // Также скрываем StartPanel если он есть
-        if (StartPanel != null)
-            StartPanel.SetActive(false);
-        
-        // Очищаем текущий мир и сбрасываем состояние
-        world?.Cleanup();
-        world = null;
-        isGameStarted = false;
+        // Сбрасываем состояние игры (уничтожаем башни, очищаем мир)
+        ResetGameState(showStartPanel: false);
         
         // Сразу запускаем игру заново
         StartGame();
@@ -231,7 +203,7 @@ public class GameManager : MonoBehaviour
         Debug.Log("Игра перезапущена");
     }
 
-    public void ResetGameState()
+    public void ResetGameState(bool showStartPanel = true)
     {
         // Сначала уничтожаем все объекты башен
         if (world != null)
@@ -258,7 +230,7 @@ public class GameManager : MonoBehaviour
         if (RestartButtonObj != null)
             RestartButtonObj.SetActive(false);
         
-        if (StartPanel != null)
+        if (StartPanel != null && showStartPanel)
             StartPanel.SetActive(true);
     }
 }

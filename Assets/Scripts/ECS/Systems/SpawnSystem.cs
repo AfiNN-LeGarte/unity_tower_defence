@@ -63,30 +63,27 @@ public class SpawnSystem : BaseSystem
                         var state = gameState.Get<GameStateComponent>();
                         state.IsGameOver = true;
 
-                        // Показываем экран победы через StartPanel
+                        // Показываем экран победы через GameOverCanvas
                         var uiEntity = World.Query<UIComponent>().FirstOrDefault();
                         if (uiEntity != null)
                         {
                             var uiComp = uiEntity.Get<UIComponent>();
 
-                            // Скрываем GameOverCanvas если есть
+                            // Показываем GameOverCanvas если есть
                             if (state.GameOverCanvas != null)
-                                state.GameOverCanvas.SetActive(false);
+                                state.GameOverCanvas.SetActive(true);
 
                             // Показываем кнопку рестарт через UIComponent
                             if (uiComp.RestartButtonObj != null)
                                 uiComp.RestartButtonObj.SetActive(true);
 
-                            // Показываем StartPanel с текстом победы
+                            // Скрываем StartPanel
                             if (uiComp.StartPanel != null)
-                            {
-                                uiComp.StartPanel.SetActive(true);
-                                // Можно добавить текст "Победа!" если нужно
-                            }
+                                uiComp.StartPanel.SetActive(false);
                         }
 
-                        // НЕ вызываем ResetGameState() здесь, чтобы не уничтожать башни преждевременно
-                        // GameManager.ResetGameState() будет вызван при нажатии кнопки рестарт или через UISystem
+                        // Сбрасываем isGameStarted чтобы можно было начать новую игру
+                        // Это будет сделано в GameManager.ResetGameState() при нажатии кнопки рестарт
                     }
                     return;
                 }
