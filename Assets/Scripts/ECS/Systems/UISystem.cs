@@ -28,9 +28,17 @@ public class UISystem : BaseSystem
 
         if (state?.IsGameOver == true) return;
 
-        if (uiComp.GoldText != null) uiComp.GoldText.text = $"Gold: {pComp.Gold}";
-        if (uiComp.LivesText != null) uiComp.LivesText.text = $"Lives: {pComp.Lives}";
-        if (uiComp.WaveText != null && wave != null)
-            uiComp.WaveText.text = $"Wave: {wave.Get<WaveComponent>().CurrentWave}/{wave.Get<WaveComponent>().TotalWaves}";
+        UnityEngine.UI.Text goldText = null;
+        UnityEngine.UI.Text livesText = null;
+        UnityEngine.UI.Text waveText = null;
+
+        if (uiComp.GoldTextObj != null) goldText = uiComp.GoldTextObj.GetComponent<UnityEngine.UI.Text>();
+        if (uiComp.LivesTextObj != null) livesText = uiComp.LivesTextObj.GetComponent<UnityEngine.UI.Text>();
+        if (uiComp.WaveTextObj != null) waveText = uiComp.WaveTextObj.GetComponent<UnityEngine.UI.Text>();
+
+        if (goldText != null) goldText.text = $"Gold: {pComp.Gold}";
+        if (livesText != null) livesText.text = $"Lives: {pComp.Lives}";
+        if (waveText != null && wave != null)
+            waveText.text = $"Wave: {wave.Get<WaveComponent>().CurrentWave}/{wave.Get<WaveComponent>().TotalWaves}";
     }
 }

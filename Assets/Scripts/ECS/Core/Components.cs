@@ -1,10 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-
-
-
-
 public class PositionComponent : Component
 {
     public Vector3 Value;
@@ -31,8 +27,8 @@ public class MovementComponent : Component
 
 public class EnemyComponent : Component
 {
-    public int Reward;      // Монеты за убийство
-    public int Wave;        // Номер волны
+    public int Reward;
+    public int Wave;
 }
 
 public class PathComponent : Component
@@ -43,13 +39,13 @@ public class PathComponent : Component
 
 public class TowerComponent : Component
 {
-    public int Level;           // Уровень башни (1-3)
-    public float Damage;        // Урон (зависит от уровня)
-    public float Range;         // Радиус (зависит от уровня)
-    public float Cooldown;      // Перезарядка (зависит от уровня)
-    public float CooldownTimer; // Таймер перезарядки
-    public int TargetId;        // ID цели
-    public int SpotIndex;       // Индекс позиции
+    public int Level;
+    public float Damage;
+    public float Range;
+    public float Cooldown;
+    public float CooldownTimer;
+    public int TargetId;
+    public int SpotIndex;
 }
 
 public class PlayerComponent : Component
@@ -66,9 +62,9 @@ public class ProjectileComponent : Component
 
 public class UIComponent : Component
 {
-    public UnityEngine.UI.Text GoldText;
-    public UnityEngine.UI.Text LivesText;
-    public UnityEngine.UI.Text WaveText;
+    public GameObject GoldTextObj;
+    public GameObject LivesTextObj;
+    public GameObject WaveTextObj;
     public List<TowerPosition> TowerPositions;
 }
 
@@ -79,19 +75,19 @@ public class UnityObjectComponent : Component
 
 public class WaveComponent : Component
 {
-    public int CurrentWave;    
-    public int TotalWaves;      
-    public float WaveTimer;     
-    public float WaveInterval;   
-    public bool WaveActive;     
-    public int EnemiesToSpawn;  
-    public int SpawnedCount;    
+    public int CurrentWave;
+    public int TotalWaves;
+    public float WaveTimer;
+    public float WaveInterval;
+    public bool WaveActive;
+    public int EnemiesToSpawn;
+    public int SpawnedCount;
 }
 
 public class AvoidanceComponent : Component
 {
     public float AvoidRadius;
-    public float AvoidStrength; 
+    public float AvoidStrength;
     public Vector3 AvoidDirection;
 }
 
