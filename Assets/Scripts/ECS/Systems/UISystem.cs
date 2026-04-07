@@ -8,7 +8,6 @@ public class UISystem : BaseSystem
     public override void Execute()
     {
         if (Settings == null) return;
-
         var player = World.Query<PlayerComponent>().FirstOrDefault();
         var ui = World.Query<UIComponent>().FirstOrDefault();
         var wave = World.Query<WaveComponent>().FirstOrDefault();
@@ -20,55 +19,37 @@ public class UISystem : BaseSystem
         var uiComp = ui.Get<UIComponent>();
         var state = gameState?.Get<GameStateComponent>();
 
-        // Проверяем, игра уже закончена? Если да - просто выходим
-        if (state != null && state.IsGameOver)
-            return;
-
-        // Проверка на поражение (жизни <= 0)
-        if (pComp.Lives <= 0)
+        // 1. Проверка условия поражения
+        if (state != null && !state.IsGameOver && pComp.Lives <= 0)
         {
             state.IsGameOver = true;
-            state.IsVictory = false; // Поражение
-            
-            if (state.GameOverCanvas != null) 
-            {
-                state.GameOverCanvas.SetActive(true);
-                
-                // Показываем кнопку рестарт через ссылку из UIComponent
-                if (uiComp.RestartButtonObj != null)
-                    uiComp.RestartButtonObj.SetActive(true);
-            }
-
-            // Скрываем StartPanel если есть
-            if (uiComp.StartPanel != null)
-                uiComp.StartPanel.SetActive(false);
-            
-            // Показываем текст поражения, скрываем текст победы
-            if (uiComp.DefeatTextObj != null)
-                uiComp.DefeatTextObj.SetActive(true);
-            if (uiComp.VictoryTextObj != null)
-                uiComp.VictoryTextObj.SetActive(false);
-            
-            // Обновляем текст жизней перед выходом
-            UnityEngine.UI.Text livesTextLocal = null;
-            if (uiComp.LivesTextObj != null) livesTextLocal = uiComp.LivesTextObj.GetComponent<UnityEngine.UI.Text>();
-            if (livesTextLocal != null) livesTextLocal.text = $"Lives: {pComp.Lives}";
-            
-            return; // Выходим сразу, чтобы не обновлять остальной UI
+            state.IsVictory = false;
         }
 
-        // Обычное обновление UI во время игры
-        UnityEngine.UI.Text goldText = null;
-        UnityEngine.UI.Text livesText = null;
-        UnityEngine.UI.Text waveText = null;
+        // 2. Обновление статистики
+        if (uiComp.GoldText != null) uiComp.GoldText.text = $"Gold: {pComp.Gold}";
+        if (uiComp.LivesText != null) uiComp.LivesText.text = $"Lives: {pComp.Lives}";
+        if (uiComp.WaveText != null && wave != null)
+            uiComp.WaveText.text = $"Wave: {wave.Get<WaveComponent>().CurrentWave}/{wave.Get<WaveComponent>().TotalWaves}";
 
-        if (uiComp.GoldTextObj != null) goldText = uiComp.GoldTextObj.GetComponent<UnityEngine.UI.Text>();
-        if (uiComp.LivesTextObj != null) livesText = uiComp.LivesTextObj.GetComponent<UnityEngine.UI.Text>();
-        if (uiComp.WaveTextObj != null) waveText = uiComp.WaveTextObj.GetComponent<UnityEngine.UI.Text>();
+        // 3. Управление панелью с кнопкой
+        if (state != null && state.IsGameOver)
+        {
+            if (uiComp.ActionPanel != null && !uiComp.ActionPanel.activeSelf)
+                uiComp.ActionPanel.SetActive(true);
 
-        if (goldText != null) goldText.text = $"Gold: {pComp.Gold}";
-        if (livesText != null) livesText.text = $"Lives: {pComp.Lives}";
-        if (waveText != null && wave != null)
-            waveText.text = $"Wave: {wave.Get<WaveComponent>().CurrentWave}/{wave.Get<WaveComponent>().TotalWaves}";
+            if (uiComp.ActionText != null)
+            {
+                uiComp.ActionText.text = state.IsVictory 
+                    ? "ПОБЕДА! НАЖМИТЕ ДЛЯ РЕСТАРТА" 
+                    : "ПОРАЖЕНИЕ. НАЖМИТЕ ДЛЯ РЕСТАРТА";
+            }
+        }
+        else
+        {
+            // Во время активной игры панель скрыта
+            if (uiComp.ActionPanel != null && uiComp.ActionPanel.activeSelf)
+                uiComp.ActionPanel.SetActive(false);
+        }
     }
 }

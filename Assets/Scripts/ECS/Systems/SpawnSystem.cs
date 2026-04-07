@@ -62,32 +62,8 @@ public class SpawnSystem : BaseSystem
                     {
                         var state = gameState.Get<GameStateComponent>();
                         state.IsGameOver = true;
-                        state.IsVictory = true; // Победа
-
-                        // Показываем экран победы через GameOverCanvas
-                        var uiEntity = World.Query<UIComponent>().FirstOrDefault();
-                        if (uiEntity != null)
-                        {
-                            var uiComp = uiEntity.Get<UIComponent>();
-
-                            // Показываем GameOverCanvas если есть
-                            if (state.GameOverCanvas != null)
-                                state.GameOverCanvas.SetActive(true);
-
-                            // Показываем кнопку рестарт через UIComponent
-                            if (uiComp.RestartButtonObj != null)
-                                uiComp.RestartButtonObj.SetActive(true);
-
-                            // Скрываем StartPanel
-                            if (uiComp.StartPanel != null)
-                                uiComp.StartPanel.SetActive(false);
-                            
-                            // Показываем текст победы, скрываем текст поражения
-                            if (uiComp.VictoryTextObj != null)
-                                uiComp.VictoryTextObj.SetActive(true);
-                            if (uiComp.DefeatTextObj != null)
-                                uiComp.DefeatTextObj.SetActive(false);
-                        }
+                        state.IsVictory = true; 
+                        // UI больше не трогаем здесь. Этим займётся UISystem на следующем кадре.
                     }
                     return;
                 }

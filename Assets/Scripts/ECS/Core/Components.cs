@@ -62,14 +62,12 @@ public class ProjectileComponent : Component
 
 public class UIComponent : Component
 {
-    public GameObject GoldTextObj;
-    public GameObject LivesTextObj;
-    public GameObject WaveTextObj;
-    public GameObject RestartButtonObj;
-    public List<TowerPosition> TowerPositions;
-    public GameObject StartPanel;
-    public GameObject VictoryTextObj; // Текст победы
-    public GameObject DefeatTextObj;  // Текст поражения
+    public GameObject ActionPanel;      // Одна общая панель
+    public UnityEngine.UI.Button ActionButton; // Одна кнопка
+    public UnityEngine.UI.Text ActionText;     // Текст на кнопке/рядом
+    public UnityEngine.UI.Text GoldText;
+    public UnityEngine.UI.Text LivesText;
+    public UnityEngine.UI.Text WaveText;
 }
 
 public class UnityObjectComponent : Component

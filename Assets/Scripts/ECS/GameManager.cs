@@ -13,16 +13,15 @@ public class GameManager : MonoBehaviour
 
     public GameObject ProjectilePrefab;
 
+    // UI поля для статистики
     public GameObject GoldTextObj;
     public GameObject LivesTextObj;
     public GameObject WaveTextObj;
 
-    public GameObject GameOverCanvas;
-    public GameObject RestartButtonObj;
-    public GameObject StartPanel;
-    
-    public GameObject VictoryTextObj; // Текст победы (назначить в инспекторе)
-    public GameObject DefeatTextObj;  // Текст поражения (назначить в инспекторе)
+    // Новая единая панель действий (старт/рестарт)
+    public GameObject ActionPanel;
+    public UnityEngine.UI.Button ActionButton;
+    public UnityEngine.UI.Text ActionText;
 
     World world;
     TowerPlacementSystem placementSystem;
@@ -36,13 +35,16 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        if (GameOverCanvas != null)
-            GameOverCanvas.SetActive(false);
-
-        if (StartPanel != null)
-            StartPanel.SetActive(true);
-
         InitializePrefabDatabase();
+
+        // Начальное состояние панели до старта игры
+        if (ActionPanel != null) ActionPanel.SetActive(true);
+        if (ActionText != null) ActionText.text = "НАЧАТЬ ИГРУ";
+        if (ActionButton != null)
+        {
+            ActionButton.onClick.RemoveAllListeners();
+            ActionButton.onClick.AddListener(OnActionClicked);
+        }
     }
 
     public void StartGame()
@@ -50,8 +52,7 @@ public class GameManager : MonoBehaviour
         if (isGameStarted) return;
         isGameStarted = true;
 
-        if (StartPanel != null)
-            StartPanel.SetActive(false);
+        if (ActionPanel != null) ActionPanel.SetActive(false);
 
         world = new World();
 
@@ -60,7 +61,7 @@ public class GameManager : MonoBehaviour
         {
             IsGameOver = false,
             IsPaused = false,
-            GameOverCanvas = GameOverCanvas
+            GameOverCanvas = null
         });
 
         var wave = world.CreateEntity();
@@ -85,14 +86,12 @@ public class GameManager : MonoBehaviour
         var ui = world.CreateEntity();
         ui.Add(new UIComponent
         {
-            GoldTextObj = GoldTextObj,
-            LivesTextObj = LivesTextObj,
-            WaveTextObj = WaveTextObj,
-            RestartButtonObj = RestartButtonObj,
-            TowerPositions = TowerPositions,
-            StartPanel = StartPanel,
-            VictoryTextObj = VictoryTextObj,
-            DefeatTextObj = DefeatTextObj
+            GoldText = GoldTextObj?.GetComponent<UnityEngine.UI.Text>(),
+            LivesText = LivesTextObj?.GetComponent<UnityEngine.UI.Text>(),
+            WaveText = WaveTextObj?.GetComponent<UnityEngine.UI.Text>(),
+            ActionPanel = ActionPanel,
+            ActionButton = ActionButton,
+            ActionText = ActionText
         });
 
         placementSystem = new TowerPlacementSystem { Settings = Settings };
@@ -110,10 +109,6 @@ public class GameManager : MonoBehaviour
         world.AddSystem(new UISystem { Settings = Settings });
         world.AddSystem(placementSystem);
 
-        SubscribeToButtons();
-
-        SubscribeToRestartButton();
-
         Debug.Log("Игра запущена: " + Settings.name);
     }
 
@@ -128,40 +123,16 @@ public class GameManager : MonoBehaviour
         world?.Cleanup();
     }
 
-    void SubscribeToButtons()
-    {
-        foreach (var pos in TowerPositions)
-        {
-            if (pos.Button != null)
-            {
-                int index = pos.Index;
-                pos.Button.onClick.AddListener(() => OnTowerClicked(index));
-            }
-        }
-    }
-
-
-    void SubscribeToRestartButton()
-    {
-        if (RestartButtonObj != null)
-        {
-            var button = RestartButtonObj.GetComponent<UnityEngine.UI.Button>();
-            if (button != null)
-                button.onClick.AddListener(OnRestartClicked);
-        }
-    }
-
     public void OnTowerClicked(int spotIndex)
     {
         placementSystem?.OnTowerClicked(spotIndex);
     }
 
-    public void OnStartButtonClicked()
+    public void OnActionClicked()
     {
-        if (!isGameStarted)
-        {
-            StartGame();
-        }
+        if (isGameStarted)
+            ResetGameState(); // Если игра идёт или закончена - сбрасываем
+        StartGame(); // Всегда запускаем после сброса или при первом старте
     }
 
     int GetEnemiesForWave(int wave)
@@ -195,62 +166,24 @@ public class GameManager : MonoBehaviour
         PrefabDatabase.Initialize(enemyPrefabs, towerPrefabs, ProjectilePrefab);
     }
 
-    void OnRestartClicked()
-    {
-        Debug.Log("Рестарт игры...");
-        
-        // Сбрасываем состояние игры (уничтожаем башни, очищаем мир)
-        ResetGameState();
-        
-        // Сразу запускаем игру заново
-        StartGame();
-        
-        Debug.Log("Игра перезапущена");
-    }
-
     public void ResetGameState()
     {
-        // Сначала уничтожаем все объекты башен
         if (world != null)
         {
-            var towers = world.Query<TowerComponent>().ToList();
-            foreach (var tower in towers)
-            {
-                if (tower.Has<UnityObjectComponent>())
-                {
-                    var viewComp = tower.Get<UnityObjectComponent>();
-                    if (viewComp.Obj != null)
-                        Object.Destroy(viewComp.Obj);
-                }
-            }
-            
-            // Также уничтожаем все остальные объекты (враги, снаряды и т.д.)
-            var allObjects = world.Query<UnityObjectComponent>().ToList();
-            foreach (var objEntity in allObjects)
-            {
-                var viewComp = objEntity.Get<UnityObjectComponent>();
-                if (viewComp.Obj != null)
-                    Object.Destroy(viewComp.Obj);
-            }
-            
-            // Очищаем все сущности мира
             var allEntities = world.GetAll().ToList();
             foreach (var entity in allEntities)
             {
+                if (entity.Has<UnityObjectComponent>())
+                {
+                    var view = entity.Get<UnityObjectComponent>();
+                    if (view.Obj != null) Object.Destroy(view.Obj);
+                }
                 world.DestroyEntity(entity);
             }
         }
-        
         world?.Cleanup();
         world = null;
         isGameStarted = false;
-        
-        // Скрываем панель результата (она же GameOverCanvas)
-        if (GameOverCanvas != null)
-            GameOverCanvas.SetActive(false);
-        
-        // Показываем стартовую панель (которая содержит нашу единственную кнопку)
-        if (StartPanel != null)
-            StartPanel.SetActive(true);
+        // UI панель пока не трогаем. При следующем кадре UISystem или StartGame() выставит её состояние.
     }
 }
