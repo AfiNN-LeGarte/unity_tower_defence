@@ -68,6 +68,8 @@ public class UIComponent : Component
     public GameObject RestartButtonObj;
     public List<TowerPosition> TowerPositions;
     public GameObject StartPanel;
+    public GameObject VictoryTextObj; // Текст победы
+    public GameObject DefeatTextObj;  // Текст поражения
 }
 
 public class UnityObjectComponent : Component
@@ -98,4 +100,5 @@ public class GameStateComponent : Component
     public bool IsGameOver;
     public bool IsPaused;
     public GameObject GameOverCanvas;
+    public bool IsVictory; // true = победа, false = поражение
 }

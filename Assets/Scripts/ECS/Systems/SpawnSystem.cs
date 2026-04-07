@@ -62,6 +62,7 @@ public class SpawnSystem : BaseSystem
                     {
                         var state = gameState.Get<GameStateComponent>();
                         state.IsGameOver = true;
+                        state.IsVictory = true; // Победа
 
                         // Показываем экран победы через GameOverCanvas
                         var uiEntity = World.Query<UIComponent>().FirstOrDefault();
@@ -80,10 +81,13 @@ public class SpawnSystem : BaseSystem
                             // Скрываем StartPanel
                             if (uiComp.StartPanel != null)
                                 uiComp.StartPanel.SetActive(false);
+                            
+                            // Показываем текст победы, скрываем текст поражения
+                            if (uiComp.VictoryTextObj != null)
+                                uiComp.VictoryTextObj.SetActive(true);
+                            if (uiComp.DefeatTextObj != null)
+                                uiComp.DefeatTextObj.SetActive(false);
                         }
-
-                        // Сбрасываем isGameStarted чтобы можно было начать новую игру
-                        // Это будет сделано в GameManager.ResetGameState() при нажатии кнопки рестарт
                     }
                     return;
                 }

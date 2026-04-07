@@ -23,6 +23,8 @@ public class UISystem : BaseSystem
         if (state != null && pComp.Lives <= 0 && !state.IsGameOver)
         {
             state.IsGameOver = true;
+            state.IsVictory = false; // Поражение
+            
             if (state.GameOverCanvas != null) 
             {
                 state.GameOverCanvas.SetActive(true);
@@ -36,8 +38,11 @@ public class UISystem : BaseSystem
             if (uiComp.StartPanel != null)
                 uiComp.StartPanel.SetActive(false);
             
-            // НЕ вызываем ResetGameState() здесь, чтобы не уничтожать башни преждевременно
-            // GameManager.ResetGameState() будет вызван при нажатии кнопки рестарт
+            // Показываем текст поражения, скрываем текст победы
+            if (uiComp.DefeatTextObj != null)
+                uiComp.DefeatTextObj.SetActive(true);
+            if (uiComp.VictoryTextObj != null)
+                uiComp.VictoryTextObj.SetActive(false);
             
             // Обновляем текст жизней перед выходом
             UnityEngine.UI.Text livesTextLocal = null;
