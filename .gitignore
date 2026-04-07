@@ -1,93 +1,20 @@
 ```
-# Build artifacts
-*.dll
-*.exe
-*.pdb
-*.mdb
-*.pidb
-*.so
-*.dylib
-*.class
-*.o
-*.obj
-*.a
-*.lib
-*.out
-
-# Unity specific
+# Unity specific ignores
 Library/
 Temp/
 Obj/
 Build/
-Builds/
+Logs/
 *.unityproj
 *.sln
-*.csproj
 *.user
 *.userprefs
 *.pidb
-*.svclog
-*.UnityScript
 *.booproj
 *.svd
-*.cache
-*.lock
+*.pdb
 *.meta
-
-# Dependencies
-Packages/
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Logs
-*.log
-crashlytics-build.properties
-
-# OS generated files
+*.unitypackage
+[Tt]humbs.db
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-desktop.ini
-
-# Editors
-.vscode/
-.idea/
-
-# Test results
-TestResults/
-
-# Compressed files
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
 ```
