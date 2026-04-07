@@ -3144,7 +3144,8 @@ MonoBehaviour:
   LivesText: {fileID: 1040374997}
   WaveText: {fileID: 1479220094}
   GameOverCanvas: {fileID: 77453549}
-  RestartButton: {fileID: 124711483}
+  RestartButtonObj: {fileID: 124711483}
+  StartPanel: {fileID: 77453549}
 --- !u!1 &1700744118
 GameObject:
   m_ObjectHideFlags: 0

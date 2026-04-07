@@ -40,6 +40,8 @@ public class MovementSystem : BaseSystem
             }
 
             Vector3 targetPos = path.Waypoints.Peek();
+            // Сохраняем Y позицию на уровне земли, чтобы враги не проваливались
+            targetPos.y = pos.Value.y;
             Vector3 dir = (targetPos - pos.Value).normalized;
 
             foreach (var tower in towers)
@@ -48,11 +50,17 @@ public class MovementSystem : BaseSystem
                 if (dist < avoid.AvoidRadius)
                 {
                     Vector3 away = (pos.Value - tower.Get<PositionComponent>().Value).normalized;
+                    // Убираем вертикальную компоненту отталкивания
+                    away.y = 0;
                     dir += away * (1f - dist / avoid.AvoidRadius) * avoid.AvoidStrength;
                 }
             }
 
+            // Нормализуем только горизонтальное направление
+            dir.y = 0;
             dir.Normalize();
+            
+            // Двигаем врага только по горизонтали (XZ), сохраняя Y на уровне земли
             pos.Value += dir * move.Speed * Time.deltaTime;
 
             if (entity.Has<RotationComponent>())
@@ -61,7 +69,7 @@ public class MovementSystem : BaseSystem
                 rot.Value = Quaternion.Slerp(rot.Value, Quaternion.LookRotation(dir), move.RotationSpeed * Time.deltaTime);
             }
 
-            if (Vector3.Distance(pos.Value, targetPos) < Settings.PathCheckDistance)
+            if (Vector3.Distance(new Vector3(pos.Value.x, 0, pos.Value.z), new Vector3(targetPos.x, 0, targetPos.z)) < Settings.PathCheckDistance)
                 path.Waypoints.Dequeue();
         }
     }
