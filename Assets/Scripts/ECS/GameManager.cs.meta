@@ -3,7 +3,14 @@ guid: fe3b35fb2bdbd9e0d9ef7631df383d3a
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - Settings: {fileID: 11400000, guid: 3cc838d7acef34d6db940d385cbddca8, type: 2}
+  - ProjectilePrefab: {fileID: 4639778965575421240, guid: 58a9a98d48f45359eb7470c674c0ddc1, type: 3}
+  - GoldTextObj: {instanceID: 0}
+  - LivesTextObj: {instanceID: 0}
+  - WaveTextObj: {instanceID: 0}
+  - GameOverCanvas: {instanceID: 0}
+  - RestartButtonObj: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 
