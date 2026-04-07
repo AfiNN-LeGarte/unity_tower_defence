@@ -65,6 +65,7 @@ public class UIComponent : Component
     public GameObject GoldTextObj;
     public GameObject LivesTextObj;
     public GameObject WaveTextObj;
+    public GameObject RestartButtonObj;
     public List<TowerPosition> TowerPositions;
 }
 

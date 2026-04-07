@@ -23,10 +23,26 @@ public class UISystem : BaseSystem
         if (state != null && pComp.Lives <= 0 && !state.IsGameOver)
         {
             state.IsGameOver = true;
-            if (state.GameOverCanvas != null) state.GameOverCanvas.SetActive(true);
+            if (state.GameOverCanvas != null) 
+            {
+                state.GameOverCanvas.SetActive(true);
+                
+                // Показываем кнопку рестарт через ссылку из UIComponent
+                if (uiComp.RestartButtonObj != null)
+                    uiComp.RestartButtonObj.SetActive(true);
+            }
         }
 
         if (state?.IsGameOver == true) return;
+        
+        // Если игра окончена, не обновляем спавн и движение врагов
+        var waveEntity = World.Query<WaveComponent>().FirstOrDefault();
+        if (waveEntity != null && state.IsGameOver)
+        {
+            // Останавливаем спавн новых врагов
+            var wave = waveEntity.Get<WaveComponent>();
+            wave.WaveActive = false;
+        }
 
         UnityEngine.UI.Text goldText = null;
         UnityEngine.UI.Text livesText = null;
