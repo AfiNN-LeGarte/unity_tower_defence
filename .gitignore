@@ -5,47 +5,30 @@ Temp/
 Obj/
 Build/
 Logs/
-*.unityproj
-*.userprefs
-*.sln
-*.csproj
-*.pidb
-*.user
-*.userosscache
-*.scc
+UserSettings/
+
+# Compiled binaries
+*.dll
+*.exe
+*.pdb
 *.meta
-*.prefab
-*.asset
-*.mat
-*.anim
-*.controller
-*.physicMaterial
-*.physicsMaterial2D
-*.spriteatlas
-*.asmdef
-*.rsp
-*.asmref
 
-# Build artifacts
-Build/
-Builds/
+# Dependencies
+Packages/
+node_modules/
 
-# Configuration files
-*.config.meta
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # OS generated files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-desktop.ini
-
-# Environment variables
-.env
-.env.local
-*.env
-*.env.*
 ```

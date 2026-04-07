@@ -193,6 +193,21 @@ public class GameManager : MonoBehaviour
     {
         Debug.Log("Рестарт игры...");
         
+        // Сначала уничтожаем все объекты башен
+        if (world != null)
+        {
+            var towers = world.Query<TowerComponent>().ToList();
+            foreach (var tower in towers)
+            {
+                if (tower.Has<UnityObjectComponent>())
+                {
+                    var view = tower.Get<UnityObjectComponent>();
+                    if (view.Obj != null)
+                        Object.Destroy(view.Obj);
+                }
+            }
+        }
+        
         // Скрываем панель GameOver и кнопку рестарт
         if (GameOverCanvas != null)
             GameOverCanvas.SetActive(false);
@@ -217,6 +232,21 @@ public class GameManager : MonoBehaviour
 
     public void ResetGameState()
     {
+        // Сначала уничтожаем все объекты башен
+        if (world != null)
+        {
+            var towers = world.Query<TowerComponent>().ToList();
+            foreach (var tower in towers)
+            {
+                if (tower.Has<UnityObjectComponent>())
+                {
+                    var view = tower.Get<UnityObjectComponent>();
+                    if (view.Obj != null)
+                        Object.Destroy(view.Obj);
+                }
+            }
+        }
+        
         world?.Cleanup();
         world = null;
         isGameStarted = false;
