@@ -1,46 +1,97 @@
-# Unity specific ignores
-Library/
-Temp/
-Obj/
-Build/
-Logs/
-*.unityproj
-*.sln
-*.user
-*.userprefs
-*.pidb
-*.booproj
-*.csproj
-*.rsp
-*.meta
-!Assets/**/.gitignore
-
 # Build artifacts
 *.dll
 *.exe
 *.pdb
-*.mdb
-*.exe.config
+*.meta
+*.unitypackage
 
-# Configuration
-.vscode/
-.idea/
+# Unity specific
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+Logs/
+MemoryCaptures/
+Packages/
+UserSettings/
+
+# Dependencies
+Packages/
+node_modules/
 
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
 crashlytics-build.properties
 
-# OS generated files
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Icon?
-.CFUserTextEncoding
-*.swp
-*.swo
-*~
+# Compiled Python (if any Python present)
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Distribution / packaging
+dist/
+sdist/
+bdist/
+*.egg
+*.egg-info/
+.installed.cfg
+*.egg-link
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.hypothesis/
+
+# Gradle
+.gradle/
+build/
+
+# MyPy
+.mypy_cache/
+
+# Compressed files
+*.zip
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.gz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
