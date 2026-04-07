@@ -93,7 +93,15 @@ public class SpawnSystem : BaseSystem
         entity.Add(new PositionComponent { Value = waypoints.Peek() });
         entity.Add(new RotationComponent { Value = Quaternion.Euler(0, 90, 0) });
         entity.Add(new HealthComponent { Current = config.Health, Max = config.Health });
-        entity.Add(new MovementComponent { Speed = config.Speed, RotationSpeed = config.RotationSpeed, IsMoving = true, Direction = Vector3.forward });
+        float speedVariation = UnityEngine.Random.Range(0.85f, 1.15f);
+
+        entity.Add(new MovementComponent
+        {
+            Speed = config.Speed * speedVariation,
+            RotationSpeed = config.RotationSpeed,
+            IsMoving = true,
+            Direction = Vector3.forward
+        });
         entity.Add(new EnemyComponent { Reward = config.Reward, Wave = wave });
         entity.Add(new PathComponent { Waypoints = waypoints, CurrentIndex = 0 });
         entity.Add(new AvoidanceComponent { AvoidRadius = Settings.AvoidanceRadius, AvoidStrength = Settings.AvoidanceStrength, AvoidDirection = Vector3.zero });

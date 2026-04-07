@@ -17,27 +17,27 @@ MonoBehaviour:
   TotalWaves: 3
   WaveInterval: 5
   FirstWaveDelay: 0
-  Wave1Enemies: 20
-  Wave2Enemies: 30
-  Wave3Enemies: 40
+  Wave1Enemies: 15
+  Wave2Enemies: 25
+  Wave3Enemies: 30
   EnemyConfigs:
   - WaveNumber: 1
     Health: 25
     Speed: 5
     Reward: 30
-    RotationSpeed: 30
+    RotationSpeed: 70
     Prefab: {fileID: 919132149155446097, guid: fcf19fe6b508878bdb5c1c33c702648e, type: 3}
   - WaveNumber: 2
     Health: 50
     Speed: 10
     Reward: 50
-    RotationSpeed: 30
+    RotationSpeed: 70
     Prefab: {fileID: 919132149155446097, guid: ee3b3dc0e85bbfb0988267a360f842ff, type: 3}
   - WaveNumber: 3
     Health: 80
     Speed: 12
     Reward: 75
-    RotationSpeed: 30
+    RotationSpeed: 70
     Prefab: {fileID: 919132149155446097, guid: ffa21a482d8b9ea4890eeb6c6f788a18, type: 3}
   TowerConfigs:
   - Level: 1
@@ -63,5 +63,5 @@ MonoBehaviour:
   PathCheckDistance: 10
   AvoidanceRadius: 20
   AvoidanceStrength: 3
-  EnemySwayStrength: 0.5
-  EnemySwaySpeed: 0.5
+  EnemySwayStrength: 0.3
+  EnemySwaySpeed: 1

@@ -41,8 +41,8 @@ public class UISystem : BaseSystem
             if (uiComp.ActionText != null)
             {
                 uiComp.ActionText.text = state.IsVictory 
-                    ? "ПОБЕДА! НАЖМИТЕ ДЛЯ РЕСТАРТА" 
-                    : "ПОРАЖЕНИЕ. НАЖМИТЕ ДЛЯ РЕСТАРТА";
+                    ? "Победа!"
+                    : "Поражение";
             }
         }
         else

@@ -1,106 +1,214 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using System.Linq;
 
 public class GameManager : MonoBehaviour
 {
     public GameSettings Settings;
-
     public List<GameObject> PathPoints;
-
     public List<TowerPosition> TowerPositions = new();
-
     public GameObject ProjectilePrefab;
 
-    // UI поля для статистики
     public GameObject GoldTextObj;
     public GameObject LivesTextObj;
     public GameObject WaveTextObj;
 
-    // Новая единая панель действий (старт/рестарт)
     public GameObject ActionPanel;
     public UnityEngine.UI.Button ActionButton;
     public UnityEngine.UI.Text ActionText;
+    public UnityEngine.UI.Button BuyTowerButton;
+
+    public bool IsPlacementMode = false;
 
     World world;
     TowerPlacementSystem placementSystem;
     bool isGameStarted = false;
+    Dictionary<GameObject, int> spotIndexMap = new();
 
     void Start()
     {
-        if (Settings == null)
-        {
-            Debug.LogError("GameSettings не назначен в Inspector!");
-            return;
-        }
+        if (Settings == null) { Debug.LogError("GameSettings не назначен!"); return; }
 
         InitializePrefabDatabase();
 
-        // Начальное состояние панели до старта игры
+        // 🔧 АВТО-НАСТРОЙКА ИНДЕКСОВ (чтобы исключить ошибку "любая кнопка")
+        spotIndexMap.Clear();
+        for (int i = 0; i < TowerPositions.Count; i++)
+        {
+            var pos = TowerPositions[i];
+            if (pos == null) continue;
+
+            pos.Index = i; // Принудительно ставим уникальный индекс
+            if (pos.Spot != null)
+            {
+                spotIndexMap[pos.Spot] = i; // Маппинг Объект -> Индекс
+            }
+        }
+
+        // UI настройки
         if (ActionPanel != null) ActionPanel.SetActive(true);
-        if (ActionText != null) ActionText.text = "НАЧАТЬ ИГРУ";
+        if (ActionText != null) ActionText.text = "ИГРАТЬ";
         if (ActionButton != null)
         {
             ActionButton.onClick.RemoveAllListeners();
             ActionButton.onClick.AddListener(OnActionClicked);
         }
+        if (BuyTowerButton != null)
+        {
+            BuyTowerButton.onClick.RemoveAllListeners();
+            BuyTowerButton.onClick.AddListener(OnBuyTowerClicked);
+        }
+        UpdateSpotVisuals();
     }
 
+    void Update()
+    {
+        if (!isGameStarted || world == null) return;
+        world.Update();
+
+        // 🎯 Рейкаст работает ВСЕГДА при клике (и для покупки, и для апгрейда)
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (EventSystem.current.IsPointerOverGameObject()) return;
+
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit))
+            {
+                if (spotIndexMap.TryGetValue(hit.collider.gameObject, out int spotIndex))
+                {
+                    OnTowerClicked(spotIndex);
+                }
+            }
+        }
+    }
+
+    // Ищет индекс места по объекту (Spot) или его детям (башне)
+    int GetSpotIndexFromHit(GameObject obj)
+    {
+        GameObject current = obj;
+        while (current != null)
+        {
+            if (spotIndexMap.TryGetValue(current, out int index))
+                return index;
+
+            current = current.transform.parent?.gameObject;
+        }
+        return -1;
+    }
+
+    void OnBuyTowerClicked()
+    {
+        // Если уже в режиме - выходим
+        if (IsPlacementMode)
+        {
+            IsPlacementMode = false;
+            UpdateSpotVisuals();
+            return;
+        }
+
+        // Проверка золота
+        var player = world?.Query<PlayerComponent>().FirstOrDefault();
+        if (player != null && player.Get<PlayerComponent>().Gold >= Settings.BaseTowerCost)
+        {
+            IsPlacementMode = true;
+            UpdateSpotVisuals();
+        }
+        else
+        {
+            Debug.Log("Недостаточно золота!");
+        }
+    }
+
+    void UpdateSpotVisuals()
+    {
+        string txt = IsPlacementMode ? "ВЫБЕРИТЕ МЕСТО" : $"КУПИТЬ ({Settings.BaseTowerCost})";
+        var btnTxt = BuyTowerButton?.GetComponent<UnityEngine.UI.Text>();
+        if (btnTxt != null) btnTxt.text = txt;
+
+        foreach (var pos in TowerPositions)
+        {
+            if (pos.Spot == null) continue;
+
+            bool isOccupied = placementSystem?.IsSpotOccupied(pos.Index) ?? false;
+            bool isAvailable = IsPlacementMode && !isOccupied;
+
+            // Красим сферу (Spot)
+            if (pos.SphereRenderer != null)
+            {
+                Color c = isAvailable ? Color.green : (isOccupied ? Color.gray : Color.white);
+                var block = new MaterialPropertyBlock();
+                block.SetColor("_Color", c); // Для URP: "_BaseColor"
+                pos.SphereRenderer.SetPropertyBlock(block);
+            }
+            // Масштаб
+            pos.Spot.transform.localScale = Vector3.one * (isAvailable ? 1.25f : 1.0f);
+        }
+    }
+
+    // 🧠 ГЛАВНАЯ ЛОГИКА КЛИКА
+    public void OnTowerClicked(int index)
+    {
+        if (IsPlacementMode)
+        {
+            // РЕЖИМ ПОКУПКИ: Ставим башню только на ПУСТОЕ место
+            if (placementSystem?.IsSpotOccupied(index) == true)
+            {
+                Debug.Log("Место занято!");
+                return;
+            }
+
+            if (placementSystem?.TryPlaceNewTower(index) == true)
+            {
+                IsPlacementMode = false; // Выключаем режим после успешной стройки
+                UpdateSpotVisuals();
+            }
+        }
+        else
+        {
+            // ОБЫЧНЫЙ РЕЖИМ: Улучшаем башню, если она есть
+            if (placementSystem?.IsSpotOccupied(index) == true)
+            {
+                placementSystem?.OnTowerClicked(index); // Вызов апгрейда
+            }
+            else
+            {
+                Debug.Log("Здесь нет башни. Нажмите 'Купить' для размещения.");
+            }
+        }
+    }
+
+    // Остальной код (StartGame, Reset и т.д.) без изменений
     public void StartGame()
     {
         if (isGameStarted) return;
         isGameStarted = true;
-
         if (ActionPanel != null) ActionPanel.SetActive(false);
 
         world = new World();
-
-        var gameState = world.CreateEntity();
-        gameState.Add(new GameStateComponent
-        {
-            IsGameOver = false,
-            IsPaused = false,
-            GameOverCanvas = null
-        });
+        world.CreateEntity().Add(new GameStateComponent { IsGameOver = false, IsPaused = false, GameOverCanvas = null });
 
         var wave = world.CreateEntity();
-        wave.Add(new WaveComponent
-        {
-            CurrentWave = 1,
-            TotalWaves = Settings.TotalWaves,
-            WaveTimer = Settings.FirstWaveDelay,
-            WaveInterval = Settings.WaveInterval,
-            WaveActive = false,
-            EnemiesToSpawn = GetEnemiesForWave(1),
-            SpawnedCount = 0
+        wave.Add(new WaveComponent {
+            CurrentWave = 1, TotalWaves = Settings.TotalWaves,
+            WaveTimer = Settings.FirstWaveDelay, WaveInterval = Settings.WaveInterval,
+            WaveActive = false, EnemiesToSpawn = GetEnemiesForWave(1), SpawnedCount = 0
         });
 
         var player = world.CreateEntity();
-        player.Add(new PlayerComponent
-        {
-            Gold = Settings.StartGold,
-            Lives = Settings.StartLives
-        });
+        player.Add(new PlayerComponent { Gold = Settings.StartGold, Lives = Settings.StartLives });
 
-        var ui = world.CreateEntity();
-        ui.Add(new UIComponent
-        {
+        world.CreateEntity().Add(new UIComponent {
             GoldText = GoldTextObj?.GetComponent<UnityEngine.UI.Text>(),
-            LivesText = LivesTextObj?.GetComponent<UnityEngine.UI.Text>(),
-            WaveText = WaveTextObj?.GetComponent<UnityEngine.UI.Text>(),
-            ActionPanel = ActionPanel,
-            ActionButton = ActionButton,
-            ActionText = ActionText
+                                 LivesText = LivesTextObj?.GetComponent<UnityEngine.UI.Text>(),
+                                 WaveText = WaveTextObj?.GetComponent<UnityEngine.UI.Text>(),
+                                 ActionPanel = ActionPanel, ActionButton = ActionButton, ActionText = ActionText
         });
 
-        placementSystem = new TowerPlacementSystem { Settings = Settings };
+        // Передаем список мест в систему
+        placementSystem = new TowerPlacementSystem { Settings = Settings, TowerPositions = TowerPositions };
 
-        world.AddSystem(new SpawnSystem
-        {
-            PathPoints = PathPoints,
-            Settings = Settings
-        });
+        world.AddSystem(new SpawnSystem { PathPoints = PathPoints, Settings = Settings });
         world.AddSystem(new MovementSystem { Settings = Settings });
         world.AddSystem(new TowerSystem { Settings = Settings });
         world.AddSystem(new ProjectileSystem { Settings = Settings });
@@ -108,82 +216,31 @@ public class GameManager : MonoBehaviour
         world.AddSystem(new ViewSystem());
         world.AddSystem(new UISystem { Settings = Settings });
         world.AddSystem(placementSystem);
-
-        Debug.Log("Игра запущена: " + Settings.name);
     }
 
-    void Update()
-    {
-        if (!isGameStarted || world == null) return;
-        world.Update();
-    }
-
-    void OnDestroy()
-    {
-        world?.Cleanup();
-    }
-
-    public void OnTowerClicked(int spotIndex)
-    {
-        placementSystem?.OnTowerClicked(spotIndex);
-    }
-
-    public void OnActionClicked()
-    {
-        if (isGameStarted)
-            ResetGameState(); // Если игра идёт или закончена - сбрасываем
-        StartGame(); // Всегда запускаем после сброса или при первом старте
-    }
-
-    int GetEnemiesForWave(int wave)
-    {
-        return wave switch
-        {
-            1 => Settings.Wave1Enemies,
-            2 => Settings.Wave2Enemies,
-            3 => Settings.Wave3Enemies,
-            _ => 5
-        };
-    }
-
-    void InitializePrefabDatabase()
-    {
-        var enemyPrefabs = new Dictionary<int, List<GameObject>>();
-        var towerPrefabs = new Dictionary<int, GameObject>();
-
-        foreach (var config in Settings.EnemyConfigs)
-        {
-            if (config.Prefab != null)
-                enemyPrefabs[config.WaveNumber] = new List<GameObject> { config.Prefab };
-        }
-
-        foreach (var config in Settings.TowerConfigs)
-        {
-            if (config.Prefab != null)
-                towerPrefabs[config.Level] = config.Prefab;
-        }
-
-        PrefabDatabase.Initialize(enemyPrefabs, towerPrefabs, ProjectilePrefab);
-    }
-
+    public void OnActionClicked() { if (isGameStarted) ResetGameState(); StartGame(); }
     public void ResetGameState()
     {
-        if (world != null)
-        {
-            var allEntities = world.GetAll().ToList();
-            foreach (var entity in allEntities)
-            {
-                if (entity.Has<UnityObjectComponent>())
-                {
-                    var view = entity.Get<UnityObjectComponent>();
-                    if (view.Obj != null) Object.Destroy(view.Obj);
-                }
-                world.DestroyEntity(entity);
+        if (world != null) {
+            var list = world.GetAll().ToList();
+            foreach(var e in list) {
+                if(e.Has<UnityObjectComponent>()) Object.Destroy(e.Get<UnityObjectComponent>().Obj);
+                world.DestroyEntity(e);
             }
         }
         world?.Cleanup();
         world = null;
         isGameStarted = false;
-        // UI панель пока не трогаем. При следующем кадре UISystem или StartGame() выставит её состояние.
+        IsPlacementMode = false;
+    }
+    void OnDestroy() { world?.Cleanup(); }
+    int GetEnemiesForWave(int w) => w switch { 1=>Settings.Wave1Enemies, 2=>Settings.Wave2Enemies, 3=>Settings.Wave3Enemies, _=>5 };
+    void InitializePrefabDatabase()
+    {
+        var e = new Dictionary<int, List<GameObject>>();
+        var t = new Dictionary<int, GameObject>();
+        foreach (var c in Settings.EnemyConfigs) if(c.Prefab!=null) e[c.WaveNumber] = new List<GameObject>{c.Prefab};
+        foreach (var c in Settings.TowerConfigs) if(c.Prefab!=null) t[c.Level] = c.Prefab;
+        PrefabDatabase.Initialize(e, t, ProjectilePrefab);
     }
 }

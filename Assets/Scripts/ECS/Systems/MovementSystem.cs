@@ -26,14 +26,15 @@ public class MovementSystem : BaseSystem
             pPos.Value += pMove.Direction * pMove.Speed * Time.deltaTime;
         }
 
+        // Выносим запросы за пределы цикла для оптимизации
+        var allEnemies = World.Query<EnemyComponent, PositionComponent, MovementComponent, PathComponent>().ToList();
         var towers = World.Query<TowerComponent, PositionComponent>().ToList();
 
-        foreach (var entity in World.Query<EnemyComponent, PositionComponent, MovementComponent, PathComponent, AvoidanceComponent>().ToList())
+        foreach (var entity in allEnemies)
         {
             var pos = entity.Get<PositionComponent>();
             var move = entity.Get<MovementComponent>();
             var path = entity.Get<PathComponent>();
-            var avoid = entity.Get<AvoidanceComponent>();
 
             if (path.Waypoints == null || path.Waypoints.Count == 0)
             {
@@ -44,35 +45,62 @@ public class MovementSystem : BaseSystem
             }
 
             Vector3 targetPos = path.Waypoints.Peek();
-            // Сохраняем Y позицию на уровне земли, чтобы враги не проваливались
             targetPos.y = pos.Value.y;
             Vector3 dir = (targetPos - pos.Value).normalized;
 
-            foreach (var tower in towers)
+            // 1️⃣ ОТТАЛКИВАНИЕ ОТ ДРУГИХ ВРАГОВ (Разделение)
+            float sepRadius = 1.2f;  // Дистанция комфортной близости
+            float sepStrength = 1.5f; // Сила отталкивания
+            foreach (var other in allEnemies)
             {
-                float dist = Vector3.Distance(pos.Value, tower.Get<PositionComponent>().Value);
-                if (dist < avoid.AvoidRadius)
+                if (entity.Id == other.Id) continue;
+                float dist = Vector3.Distance(pos.Value, other.Get<PositionComponent>().Value);
+                if (dist < sepRadius && dist > 0.01f)
                 {
-                    Vector3 away = (pos.Value - tower.Get<PositionComponent>().Value).normalized;
-                    // Убираем вертикальную компоненту отталкивания
-                    away.y = 0;
-                    dir += away * (1f - dist / avoid.AvoidRadius) * avoid.AvoidStrength;
+                    Vector3 away = (pos.Value - other.Get<PositionComponent>().Value).normalized;
+                    dir += away * (1f - dist / sepRadius) * sepStrength;
                 }
             }
 
-            // Нормализуем только горизонтальное направление
+            // 2️⃣ ОТТАЛКИВАНИЕ ОТ БАШЕН (Ваша старая логика, оптимизированная)
+            foreach (var tower in towers)
+            {
+                float dist = Vector3.Distance(pos.Value, tower.Get<PositionComponent>().Value);
+                if (dist < Settings.AvoidanceRadius)
+                {
+                    Vector3 away = (pos.Value - tower.Get<PositionComponent>().Value).normalized;
+                    away.y = 0;
+                    dir += away * (1f - dist / Settings.AvoidanceRadius) * Settings.AvoidanceStrength;
+                }
+            }
+
+            // 3️⃣ ПОКАЧИВАНИЕ (Sway)
+            if (Settings.EnemySwayStrength > 0.01f)
+            {
+                dir.y = 0; // Работаем в плоскости XZ
+                Vector3 right = new Vector3(-dir.z, 0, dir.x).normalized; // Перпендикуляр
+                float sway = Mathf.Sin(Time.time * Settings.EnemySwaySpeed + entity.Id * 0.7f) * Settings.EnemySwayStrength;
+                dir += right * sway;
+            }
+
+            // Нормализация и движение
             dir.y = 0;
             dir.Normalize();
-            
-            // Двигаем врага только по горизонтали (XZ), сохраняя Y на уровне земли
             pos.Value += dir * move.Speed * Time.deltaTime;
 
+            // Плавный поворот (исправленный Slerp -> RotateTowards)
             if (entity.Has<RotationComponent>())
             {
                 var rot = entity.Get<RotationComponent>();
-                rot.Value = Quaternion.Slerp(rot.Value, Quaternion.LookRotation(dir), move.RotationSpeed * Time.deltaTime);
+                if (dir.sqrMagnitude > 0.001f)
+                {
+                    Quaternion targetRot = Quaternion.LookRotation(dir);
+                    float maxDeg = move.RotationSpeed * Time.deltaTime;
+                    rot.Value = Quaternion.RotateTowards(rot.Value, targetRot, maxDeg);
+                }
             }
 
+            // Проверка достижения вейпоинта
             if (Vector3.Distance(new Vector3(pos.Value.x, 0, pos.Value.z), new Vector3(targetPos.x, 0, targetPos.z)) < Settings.PathCheckDistance)
                 path.Waypoints.Dequeue();
         }

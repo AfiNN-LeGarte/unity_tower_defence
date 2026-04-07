@@ -1,0 +1,1240 @@
+=== ./Assets/Scripts/Config/TowerPosition.cs ===
+using UnityEngine;
+using System;
+
+[Serializable]
+public class TowerPosition
+{
+    public GameObject Spot;
+    public Renderer SphereRenderer;
+    public UnityEngine.UI.Button Button;
+    public UnityEngine.UI.Text CostText;
+
+    public int Index;
+    public bool IsEnabled = true;
+
+    public Vector3 Position => Spot != null ? Spot.transform.position : Vector3.zero;
+}
+=== ./Assets/Scripts/Config/GameSettings.cs ===
+using UnityEngine;
+using System;
+
+[CreateAssetMenu(fileName = "GameSettings", menuName = "ECS/Game Settings")]
+public class GameSettings : ScriptableObject
+{
+    public int StartGold = 200;
+    public int StartLives = 10;
+
+    public int TotalWaves = 3;
+    public float WaveInterval = 10f;
+    public float FirstWaveDelay = 2f;
+
+    public int Wave1Enemies = 5;
+    public int Wave2Enemies = 10;
+    public int Wave3Enemies = 15;
+
+    public EnemyWaveConfig[] EnemyConfigs;
+
+    public TowerLevelConfig[] TowerConfigs;
+    public int BaseTowerCost = 100;
+    public float UpgradeCostMultiplier = 0.5f;
+    public float UpgradeCostIncrease = 1.5f;
+
+    public float HitDistance = 0.5f;
+    public float DestroyY = -10f;
+
+    public float PathCheckDistance = 0.5f;
+    public float AvoidanceRadius = 5f;
+    public float AvoidanceStrength = 2.5f;
+    public float EnemySwayStrength = 0.3f;
+    public float EnemySwaySpeed = 0.5f;
+}
+
+[Serializable]
+public class EnemyWaveConfig
+{
+    public int WaveNumber;
+
+    public float Health = 50f;
+    public float Speed = 3f;
+    public int Reward = 10;
+    public float RotationSpeed = 10f;
+
+    public GameObject Prefab;
+}
+
+[Serializable]
+public class TowerLevelConfig
+{
+    public int Level;
+
+    public float Damage = 20f;
+    public float Range = 10f;
+    public float Cooldown = 2f;
+
+    public GameObject Prefab;
+}
+=== ./Assets/Scripts/ECS/GameManager.cs ===
+using UnityEngine;
+using UnityEngine.EventSystems;
+using System.Collections.Generic;
+using System.Linq;
+
+public class GameManager : MonoBehaviour
+{
+    public GameSettings Settings;
+    public List<GameObject> PathPoints;
+    public List<TowerPosition> TowerPositions = new();
+    public GameObject ProjectilePrefab;
+
+    public GameObject GoldTextObj;
+    public GameObject LivesTextObj;
+    public GameObject WaveTextObj;
+
+    public GameObject ActionPanel;
+    public UnityEngine.UI.Button ActionButton;
+    public UnityEngine.UI.Text ActionText;
+    public UnityEngine.UI.Button BuyTowerButton;
+
+    public bool IsPlacementMode = false;
+
+    World world;
+    TowerPlacementSystem placementSystem;
+    bool isGameStarted = false;
+    Dictionary<GameObject, int> spotIndexMap = new();
+
+    void Start()
+    {
+        if (Settings == null) { Debug.LogError("GameSettings не назначен!"); return; }
+
+        InitializePrefabDatabase();
+
+        // 🔧 АВТО-НАСТРОЙКА ИНДЕКСОВ (чтобы исключить ошибку "любая кнопка")
+        spotIndexMap.Clear();
+        for (int i = 0; i < TowerPositions.Count; i++)
+        {
+            var pos = TowerPositions[i];
+            if (pos == null) continue;
+
+            pos.Index = i; // Принудительно ставим уникальный индекс
+            if (pos.Spot != null)
+            {
+                spotIndexMap[pos.Spot] = i; // Маппинг Объект -> Индекс
+            }
+        }
+
+        // UI настройки
+        if (ActionPanel != null) ActionPanel.SetActive(true);
+        if (ActionText != null) ActionText.text = "ИГРАТЬ";
+        if (ActionButton != null)
+        {
+            ActionButton.onClick.RemoveAllListeners();
+            ActionButton.onClick.AddListener(OnActionClicked);
+        }
+        if (BuyTowerButton != null)
+        {
+            BuyTowerButton.onClick.RemoveAllListeners();
+            BuyTowerButton.onClick.AddListener(OnBuyTowerClicked);
+        }
+        UpdateSpotVisuals();
+    }
+
+    void Update()
+    {
+        if (!isGameStarted || world == null) return;
+        world.Update();
+
+        // 🎯 Рейкаст работает ВСЕГДА при клике (и для покупки, и для апгрейда)
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (EventSystem.current.IsPointerOverGameObject()) return;
+
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit))
+            {
+                if (spotIndexMap.TryGetValue(hit.collider.gameObject, out int spotIndex))
+                {
+                    OnTowerClicked(spotIndex);
+                }
+            }
+        }
+    }
+
+    // Ищет индекс места по объекту (Spot) или его детям (башне)
+    int GetSpotIndexFromHit(GameObject obj)
+    {
+        GameObject current = obj;
+        while (current != null)
+        {
+            if (spotIndexMap.TryGetValue(current, out int index))
+                return index;
+
+            current = current.transform.parent?.gameObject;
+        }
+        return -1;
+    }
+
+    void OnBuyTowerClicked()
+    {
+        // Если уже в режиме - выходим
+        if (IsPlacementMode)
+        {
+            IsPlacementMode = false;
+            UpdateSpotVisuals();
+            return;
+        }
+
+        // Проверка золота
+        var player = world?.Query<PlayerComponent>().FirstOrDefault();
+        if (player != null && player.Get<PlayerComponent>().Gold >= Settings.BaseTowerCost)
+        {
+            IsPlacementMode = true;
+            UpdateSpotVisuals();
+        }
+        else
+        {
+            Debug.Log("Недостаточно золота!");
+        }
+    }
+
+    void UpdateSpotVisuals()
+    {
+        string txt = IsPlacementMode ? "ВЫБЕРИТЕ МЕСТО" : $"КУПИТЬ ({Settings.BaseTowerCost})";
+        var btnTxt = BuyTowerButton?.GetComponent<UnityEngine.UI.Text>();
+        if (btnTxt != null) btnTxt.text = txt;
+
+        foreach (var pos in TowerPositions)
+        {
+            if (pos.Spot == null) continue;
+
+            bool isOccupied = placementSystem?.IsSpotOccupied(pos.Index) ?? false;
+            bool isAvailable = IsPlacementMode && !isOccupied;
+
+            // Красим сферу (Spot)
+            if (pos.SphereRenderer != null)
+            {
+                Color c = isAvailable ? Color.green : (isOccupied ? Color.gray : Color.white);
+                var block = new MaterialPropertyBlock();
+                block.SetColor("_Color", c); // Для URP: "_BaseColor"
+                pos.SphereRenderer.SetPropertyBlock(block);
+            }
+            // Масштаб
+            pos.Spot.transform.localScale = Vector3.one * (isAvailable ? 1.25f : 1.0f);
+        }
+    }
+
+    // 🧠 ГЛАВНАЯ ЛОГИКА КЛИКА
+    public void OnTowerClicked(int index)
+    {
+        if (IsPlacementMode)
+        {
+            // РЕЖИМ ПОКУПКИ: Ставим башню только на ПУСТОЕ место
+            if (placementSystem?.IsSpotOccupied(index) == true)
+            {
+                Debug.Log("Место занято!");
+                return;
+            }
+
+            if (placementSystem?.TryPlaceNewTower(index) == true)
+            {
+                IsPlacementMode = false; // Выключаем режим после успешной стройки
+                UpdateSpotVisuals();
+            }
+        }
+        else
+        {
+            // ОБЫЧНЫЙ РЕЖИМ: Улучшаем башню, если она есть
+            if (placementSystem?.IsSpotOccupied(index) == true)
+            {
+                placementSystem?.OnTowerClicked(index); // Вызов апгрейда
+            }
+            else
+            {
+                Debug.Log("Здесь нет башни. Нажмите 'Купить' для размещения.");
+            }
+        }
+    }
+
+    // Остальной код (StartGame, Reset и т.д.) без изменений
+    public void StartGame()
+    {
+        if (isGameStarted) return;
+        isGameStarted = true;
+        if (ActionPanel != null) ActionPanel.SetActive(false);
+
+        world = new World();
+        world.CreateEntity().Add(new GameStateComponent { IsGameOver = false, IsPaused = false, GameOverCanvas = null });
+
+        var wave = world.CreateEntity();
+        wave.Add(new WaveComponent {
+            CurrentWave = 1, TotalWaves = Settings.TotalWaves,
+            WaveTimer = Settings.FirstWaveDelay, WaveInterval = Settings.WaveInterval,
+            WaveActive = false, EnemiesToSpawn = GetEnemiesForWave(1), SpawnedCount = 0
+        });
+
+        var player = world.CreateEntity();
+        player.Add(new PlayerComponent { Gold = Settings.StartGold, Lives = Settings.StartLives });
+
+        world.CreateEntity().Add(new UIComponent {
+            GoldText = GoldTextObj?.GetComponent<UnityEngine.UI.Text>(),
+                                 LivesText = LivesTextObj?.GetComponent<UnityEngine.UI.Text>(),
+                                 WaveText = WaveTextObj?.GetComponent<UnityEngine.UI.Text>(),
+                                 ActionPanel = ActionPanel, ActionButton = ActionButton, ActionText = ActionText
+        });
+
+        // Передаем список мест в систему
+        placementSystem = new TowerPlacementSystem { Settings = Settings, TowerPositions = TowerPositions };
+
+        world.AddSystem(new SpawnSystem { PathPoints = PathPoints, Settings = Settings });
+        world.AddSystem(new MovementSystem { Settings = Settings });
+        world.AddSystem(new TowerSystem { Settings = Settings });
+        world.AddSystem(new ProjectileSystem { Settings = Settings });
+        world.AddSystem(new CleanupSystem());
+        world.AddSystem(new ViewSystem());
+        world.AddSystem(new UISystem { Settings = Settings });
+        world.AddSystem(placementSystem);
+    }
+
+    public void OnActionClicked() { if (isGameStarted) ResetGameState(); StartGame(); }
+    public void ResetGameState()
+    {
+        if (world != null) {
+            var list = world.GetAll().ToList();
+            foreach(var e in list) {
+                if(e.Has<UnityObjectComponent>()) Object.Destroy(e.Get<UnityObjectComponent>().Obj);
+                world.DestroyEntity(e);
+            }
+        }
+        world?.Cleanup();
+        world = null;
+        isGameStarted = false;
+        IsPlacementMode = false;
+    }
+    void OnDestroy() { world?.Cleanup(); }
+    int GetEnemiesForWave(int w) => w switch { 1=>Settings.Wave1Enemies, 2=>Settings.Wave2Enemies, 3=>Settings.Wave3Enemies, _=>5 };
+    void InitializePrefabDatabase()
+    {
+        var e = new Dictionary<int, List<GameObject>>();
+        var t = new Dictionary<int, GameObject>();
+        foreach (var c in Settings.EnemyConfigs) if(c.Prefab!=null) e[c.WaveNumber] = new List<GameObject>{c.Prefab};
+        foreach (var c in Settings.TowerConfigs) if(c.Prefab!=null) t[c.Level] = c.Prefab;
+        PrefabDatabase.Initialize(e, t, ProjectilePrefab);
+    }
+}
+=== ./Assets/Scripts/ECS/Systems/TowerPlacementSystem.cs ===
+using UnityEngine;
+using System.Linq;
+using System.Collections.Generic;
+
+public class TowerPlacementSystem : BaseSystem
+{
+    public GameSettings Settings;
+    public List<TowerPosition> TowerPositions;
+
+    public override void Execute()
+    {
+        if (Settings == null || TowerPositions == null) return;
+        var gameState = World.Query<GameStateComponent>().FirstOrDefault();
+        if (gameState?.Get<GameStateComponent>().IsGameOver == true) return;
+
+        var player = World.Query<PlayerComponent>().FirstOrDefault();
+        if (player == null) return;
+        var playerComp = player.Get<PlayerComponent>();
+
+        foreach (var pos in TowerPositions)
+        {
+            if (pos == null || pos.CostText == null) continue;
+
+            // 🚫 Отключаем кнопку НАВСЕГДА (оставляем только текст)
+            if (pos.Button != null && pos.Button.interactable)
+                pos.Button.interactable = false;
+
+            var tower = World.Query<TowerComponent>()
+            .FirstOrDefault(e => e.Get<TowerComponent>().SpotIndex == pos.Index);
+            bool isOccupied = tower != null;
+            int cost = isOccupied ? GetUpgradeCost(tower.Get<TowerComponent>().Level) : Settings.BaseTowerCost;
+            bool canAfford = playerComp.Gold >= cost;
+
+            // ✅ Обновляем ТОЛЬКО текст статуса/цены
+            if (isOccupied)
+            {
+                var level = tower.Get<TowerComponent>().Level;
+                pos.CostText.text = level >= 3 ? "MAX" : $"UP {cost}";
+                pos.CostText.color = canAfford && level < 3 ? Color.green : Color.red;
+            }
+            else
+            {
+                pos.CostText.text = $"Buy {cost}";
+                pos.CostText.color = canAfford ? Color.white : Color.gray;
+            }
+        }
+    }
+
+    // 🟢 ТОЛЬКО для покупки (двухэтапный режим)
+    public bool TryPlaceNewTower(int spotIndex)
+    {
+        int cost = Settings.BaseTowerCost;
+        var player = World.Query<PlayerComponent>().FirstOrDefault();
+        if (player == null || player.Get<PlayerComponent>().Gold < cost)
+        {
+            Debug.Log("[ECS] Недостаточно золота для постройки!");
+            return false;
+        }
+
+        var pos = TowerPositions?.FirstOrDefault(p => p.Index == spotIndex);
+        if (pos == null) return false;
+
+        if (IsSpotOccupied(spotIndex))
+        {
+            Debug.Log("[ECS] Место уже занято!");
+            return false;
+        }
+
+        PlaceTower(pos, player.Get<PlayerComponent>());
+        return true;
+    }
+
+    // 🔵 ТОЛЬКО для апгрейда (клик по существующей башне)
+    public void OnTowerClicked(int spotIndex)
+    {
+        var player = World.Query<PlayerComponent>().FirstOrDefault();
+        if (player == null) return;
+        var playerComp = player.Get<PlayerComponent>();
+
+        var pos = TowerPositions?.FirstOrDefault(p => p.Index == spotIndex);
+        if (pos == null) return;
+
+        var tower = World.Query<TowerComponent>()
+        .FirstOrDefault(e => e.Get<TowerComponent>().SpotIndex == spotIndex);
+
+        if (tower != null)
+            UpgradeTower(tower, pos, playerComp);
+        else
+            Debug.Log("[ECS] На этом месте нет башни. Используйте кнопку покупки.");
+    }
+
+    public bool IsSpotOccupied(int index) =>
+    World.Query<TowerComponent>().Any(e => e.Get<TowerComponent>().SpotIndex == index);
+
+    private void PlaceTower(TowerPosition pos, PlayerComponent player)
+    {
+        int cost = Settings.BaseTowerCost;
+        if (player.Gold < cost) return;
+
+        var config = GetTowerConfig(1);
+        if (config == null) { Debug.LogError("[ECS] Tower Config Level 1 not found!"); return; }
+
+        var tower = World.CreateEntity();
+        tower.Add(new PositionComponent { Value = pos.Position });
+        tower.Add(new RotationComponent { Value = Quaternion.identity });
+        tower.Add(new TowerComponent
+        {
+            Level = 1, SpotIndex = pos.Index, Damage = config.Damage,
+            Range = config.Range, Cooldown = config.Cooldown, CooldownTimer = 0f, TargetId = -1
+        });
+
+        if (config.Prefab != null)
+        {
+            var obj = Object.Instantiate(config.Prefab, pos.Position, Quaternion.identity);
+            obj.transform.SetParent(pos.Spot.transform, worldPositionStays: true); // <-- Важно!
+            tower.Add(new UnityObjectComponent { Obj = obj });
+        }
+
+        player.Gold -= cost;
+        Debug.Log("[ECS] Башня успешно построена!");
+    }
+
+    private void UpgradeTower(Entity tower, TowerPosition pos, PlayerComponent player)
+    {
+        var tComp = tower.Get<TowerComponent>();
+        if (tComp.Level >= 3)
+        {
+            Debug.Log("[ECS] Башня максимального уровня!");
+            return;
+        }
+
+        int cost = GetUpgradeCost(tComp.Level);
+        if (player.Gold < cost)
+        {
+            Debug.Log($"[ECS] Недостаточно золота для улучшения. Нужно: {cost}");
+            return;
+        }
+
+        int newLevel = tComp.Level + 1;
+        var config = GetTowerConfig(newLevel);
+        if (config == null) return;
+
+        tComp.Level = newLevel;
+        tComp.Damage = config.Damage;
+        tComp.Range = config.Range;
+        tComp.Cooldown = config.Cooldown;
+
+        if (tower.Has<UnityObjectComponent>())
+        {
+            var view = tower.Get<UnityObjectComponent>();
+            if (view.Obj != null) Object.Destroy(view.Obj);
+            if (config.Prefab != null)
+                view.Obj = Object.Instantiate(config.Prefab, pos.Position, Quaternion.identity);
+        }
+        player.Gold -= cost;
+        Debug.Log("[ECS] Башня улучшена!");
+    }
+
+    private int GetUpgradeCost(int level) =>
+    Mathf.RoundToInt(Settings.BaseTowerCost * Settings.UpgradeCostMultiplier *
+    Mathf.Pow(Settings.UpgradeCostIncrease, level - 1));
+
+    private TowerLevelConfig GetTowerConfig(int level)
+    {
+        foreach (var c in Settings.TowerConfigs)
+            if (c.Level == level) return c;
+            return new TowerLevelConfig { Level = level, Damage = 20f, Range = 10f, Cooldown = 2f };
+    }
+}
+=== ./Assets/Scripts/ECS/Systems/UISystem.cs ===
+using UnityEngine;
+using System.Linq;
+
+public class UISystem : BaseSystem
+{
+    public GameSettings Settings;
+
+    public override void Execute()
+    {
+        if (Settings == null) return;
+        var player = World.Query<PlayerComponent>().FirstOrDefault();
+        var ui = World.Query<UIComponent>().FirstOrDefault();
+        var wave = World.Query<WaveComponent>().FirstOrDefault();
+        var gameState = World.Query<GameStateComponent>().FirstOrDefault();
+
+        if (player == null || ui == null) return;
+
+        var pComp = player.Get<PlayerComponent>();
+        var uiComp = ui.Get<UIComponent>();
+        var state = gameState?.Get<GameStateComponent>();
+
+        // 1. Проверка условия поражения
+        if (state != null && !state.IsGameOver && pComp.Lives <= 0)
+        {
+            state.IsGameOver = true;
+            state.IsVictory = false;
+        }
+
+        // 2. Обновление статистики
+        if (uiComp.GoldText != null) uiComp.GoldText.text = $"Gold: {pComp.Gold}";
+        if (uiComp.LivesText != null) uiComp.LivesText.text = $"Lives: {pComp.Lives}";
+        if (uiComp.WaveText != null && wave != null)
+            uiComp.WaveText.text = $"Wave: {wave.Get<WaveComponent>().CurrentWave}/{wave.Get<WaveComponent>().TotalWaves}";
+
+        // 3. Управление панелью с кнопкой
+        if (state != null && state.IsGameOver)
+        {
+            if (uiComp.ActionPanel != null && !uiComp.ActionPanel.activeSelf)
+                uiComp.ActionPanel.SetActive(true);
+
+            if (uiComp.ActionText != null)
+            {
+                uiComp.ActionText.text = state.IsVictory 
+                    ? "Победа!"
+                    : "Поражение";
+            }
+        }
+        else
+        {
+            // Во время активной игры панель скрыта
+            if (uiComp.ActionPanel != null && uiComp.ActionPanel.activeSelf)
+                uiComp.ActionPanel.SetActive(false);
+        }
+    }
+}
+=== ./Assets/Scripts/ECS/Systems/CleanupSystem.cs ===
+using UnityEngine;
+using System.Linq;
+
+public class CleanupSystem : BaseSystem
+{
+    public override void Execute()
+    {
+        var deadEntities = World.GetAll().Where(e => !e.IsActive).ToList();
+        foreach (var e in deadEntities)
+        {
+            if (e.Has<UnityObjectComponent>())
+            {
+                var view = e.Get<UnityObjectComponent>();
+                if (view.Obj != null)
+                    Object.Destroy(view.Obj);
+            }
+        }
+    }
+}
+=== ./Assets/Scripts/ECS/Systems/ProjectileSystem.cs ===
+using UnityEngine;
+using System.Linq;
+
+public class ProjectileSystem : BaseSystem
+{
+    public GameSettings Settings;
+
+    public override void Execute()
+    {
+        if (Settings == null) return;
+
+        foreach (var proj in World.Query<ProjectileComponent, PositionComponent, UnityObjectComponent>().ToList())
+        {
+            var pComp = proj.Get<ProjectileComponent>();
+            var pPos = proj.Get<PositionComponent>();
+            var pView = proj.Get<UnityObjectComponent>();
+
+            if (pView.Obj == null || pPos.Value.y < Settings.DestroyY)
+            {
+                if (pView.Obj != null) Object.Destroy(pView.Obj);
+                World.DestroyEntity(proj);
+                continue;
+            }
+
+            var target = World.GetAll().FirstOrDefault(e => e.Id == pComp.TargetId && e.IsActive && e.Has<HealthComponent>());
+            if (target == null || target.Get<HealthComponent>().Current <= 0)
+            {
+                if (pView.Obj != null) Object.Destroy(pView.Obj);
+                World.DestroyEntity(proj);
+                continue;
+            }
+
+            float dist = Vector3.Distance(pPos.Value, target.Get<PositionComponent>().Value);
+            if (dist < Settings.HitDistance)
+            {
+                var health = target.Get<HealthComponent>();
+                health.Current -= pComp.Damage;
+
+                if (health.Current <= 0 && target.Has<EnemyComponent>())
+                {
+                    var player = World.Query<PlayerComponent>().FirstOrDefault();
+                    if (player != null) player.Get<PlayerComponent>().Gold += target.Get<EnemyComponent>().Reward;
+                    
+                    // Уничтожаем врага
+                    if (target.Has<UnityObjectComponent>())
+                    {
+                        var enemyView = target.Get<UnityObjectComponent>();
+                        if (enemyView.Obj != null)
+                            Object.Destroy(enemyView.Obj);
+                    }
+                    World.DestroyEntity(target);
+                }
+
+                if (pView.Obj != null) Object.Destroy(pView.Obj);
+                World.DestroyEntity(proj);
+            }
+        }
+    }
+}
+=== ./Assets/Scripts/ECS/Systems/TowerSystem.cs ===
+using UnityEngine;
+using System.Linq;
+
+public class TowerSystem : BaseSystem
+{
+    public GameSettings Settings;
+
+    public override void Execute()
+    {
+        if (Settings == null) return;
+
+        var gameState = World.Query<GameStateComponent>().FirstOrDefault();
+        if (gameState?.Get<GameStateComponent>().IsGameOver == true) return;
+
+        foreach (var tower in World.Query<TowerComponent, PositionComponent>().ToList())
+        {
+            var tComp = tower.Get<TowerComponent>();
+            var tPos = tower.Get<PositionComponent>();
+
+            tComp.CooldownTimer -= Time.deltaTime;
+            if (tComp.CooldownTimer > 0) continue;
+
+            Entity target = null;
+            float minDist = tComp.Range;
+
+            foreach (var enemy in World.Query<EnemyComponent, PositionComponent, HealthComponent>().ToList())
+            {
+                if (enemy.Get<HealthComponent>().Current <= 0) continue;
+                float dist = Vector3.Distance(tPos.Value, enemy.Get<PositionComponent>().Value);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    target = enemy;
+                }
+            }
+
+            if (target != null)
+            {
+                tComp.TargetId = target.Id;
+                tComp.CooldownTimer = tComp.Cooldown;
+
+                var proj = World.CreateEntity();
+                proj.Add(new PositionComponent { Value = tPos.Value });
+                proj.Add(new ProjectileComponent { TargetId = target.Id, Damage = tComp.Damage });
+                proj.Add(new MovementComponent { Speed = 20f, Direction = Vector3.forward, IsMoving = true });
+
+                if (PrefabDatabase.ProjectilePrefab != null)
+                    proj.Add(new UnityObjectComponent { Obj = Object.Instantiate(PrefabDatabase.ProjectilePrefab, tPos.Value, Quaternion.identity) });
+            }
+        }
+    }
+}
+=== ./Assets/Scripts/ECS/Systems/MovementSystem.cs ===
+using UnityEngine;
+using System.Linq;
+
+public class MovementSystem : BaseSystem
+{
+    public GameSettings Settings;
+
+    public override void Execute()
+    {
+        if (Settings == null) return;
+
+        var gameState = World.Query<GameStateComponent>().FirstOrDefault();
+        if (gameState != null && gameState.Get<GameStateComponent>().IsGameOver)
+            return;
+
+        foreach (var proj in World.Query<ProjectileComponent, PositionComponent, MovementComponent>().ToList())
+        {
+            var pComp = proj.Get<ProjectileComponent>();
+            var pPos = proj.Get<PositionComponent>();
+            var pMove = proj.Get<MovementComponent>();
+
+            var target = World.GetAll().FirstOrDefault(e => e.Id == pComp.TargetId && e.IsActive && e.Has<PositionComponent>());
+            if (target != null)
+                pMove.Direction = (target.Get<PositionComponent>().Value - pPos.Value).normalized;
+
+            pPos.Value += pMove.Direction * pMove.Speed * Time.deltaTime;
+        }
+
+        var towers = World.Query<TowerComponent, PositionComponent>().ToList();
+
+        foreach (var entity in World.Query<EnemyComponent, PositionComponent, MovementComponent, PathComponent, AvoidanceComponent>().ToList())
+        {
+            var pos = entity.Get<PositionComponent>();
+            var move = entity.Get<MovementComponent>();
+            var path = entity.Get<PathComponent>();
+            var avoid = entity.Get<AvoidanceComponent>();
+
+            if (path.Waypoints == null || path.Waypoints.Count == 0)
+            {
+                var player = World.Query<PlayerComponent>().FirstOrDefault();
+                if (player != null) player.Get<PlayerComponent>().Lives--;
+                World.DestroyEntity(entity);
+                continue;
+            }
+
+            Vector3 targetPos = path.Waypoints.Peek();
+            // Сохраняем Y позицию на уровне земли, чтобы враги не проваливались
+            targetPos.y = pos.Value.y;
+            Vector3 dir = (targetPos - pos.Value).normalized;
+
+            foreach (var tower in towers)
+            {
+                float dist = Vector3.Distance(pos.Value, tower.Get<PositionComponent>().Value);
+                if (dist < avoid.AvoidRadius)
+                {
+                    Vector3 away = (pos.Value - tower.Get<PositionComponent>().Value).normalized;
+                    // Убираем вертикальную компоненту отталкивания
+                    away.y = 0;
+                    dir += away * (1f - dist / avoid.AvoidRadius) * avoid.AvoidStrength;
+                }
+            }
+
+            // Нормализуем только горизонтальное направление
+            dir.y = 0;
+            dir.Normalize();
+            
+            // Двигаем врага только по горизонтали (XZ), сохраняя Y на уровне земли
+            pos.Value += dir * move.Speed * Time.deltaTime;
+
+            if (entity.Has<RotationComponent>())
+            {
+                var rot = entity.Get<RotationComponent>();
+                rot.Value = Quaternion.Slerp(rot.Value, Quaternion.LookRotation(dir), move.RotationSpeed * Time.deltaTime);
+            }
+
+            if (Vector3.Distance(new Vector3(pos.Value.x, 0, pos.Value.z), new Vector3(targetPos.x, 0, targetPos.z)) < Settings.PathCheckDistance)
+                path.Waypoints.Dequeue();
+        }
+    }
+}
+=== ./Assets/Scripts/ECS/Systems/SpawnSystem.cs ===
+using UnityEngine;
+using System.Linq;
+using System.Collections.Generic;
+
+public class SpawnSystem : BaseSystem
+{
+    public List<GameObject> PathPoints;
+    public GameSettings Settings;
+
+    private float spawnTimer;
+    private float spawnDelay = 0.5f;
+    private bool isSpawning;
+    private int spawnedInWave;
+    private int currentWaveEnemies;
+
+    public override void Execute()
+    {
+        if (Settings == null) return;
+
+        var gameState = World.Query<GameStateComponent>().FirstOrDefault();
+        if (gameState != null && gameState.Get<GameStateComponent>().IsGameOver)
+            return;
+
+        var waveEntity = World.Query<WaveComponent>().FirstOrDefault();
+        if (waveEntity == null) return;
+        var wave = waveEntity.Get<WaveComponent>();
+
+        if (!wave.WaveActive)
+        {
+            wave.WaveTimer -= Time.deltaTime;
+            if (wave.WaveTimer <= 0 && wave.CurrentWave <= wave.TotalWaves)
+            {
+                wave.WaveActive = true;
+                currentWaveEnemies = GetEnemiesForWave(wave.CurrentWave);
+                spawnedInWave = 0;
+                isSpawning = true;
+                spawnTimer = 0f;
+            }
+            return;
+        }
+
+        if (isSpawning && spawnedInWave < currentWaveEnemies)
+        {
+            spawnTimer -= Time.deltaTime;
+            if (spawnTimer <= 0)
+            {
+                SpawnEnemy(wave.CurrentWave);
+                spawnedInWave++;
+                spawnTimer = spawnDelay;
+            }
+        }
+        else
+        {
+            if (World.Query<EnemyComponent>().Count() == 0)
+            {
+                wave.WaveActive = false;
+
+                // Если это была последняя волна - завершаем игру победой
+                if (wave.CurrentWave >= wave.TotalWaves)
+                {
+                    if (gameState != null)
+                    {
+                        var state = gameState.Get<GameStateComponent>();
+                        state.IsGameOver = true;
+                        state.IsVictory = true; 
+                        // UI больше не трогаем здесь. Этим займётся UISystem на следующем кадре.
+                    }
+                    return;
+                }
+
+                wave.CurrentWave++;
+                wave.WaveTimer = wave.WaveInterval;
+                isSpawning = false;
+                spawnedInWave = 0;
+            }
+        }
+    }
+
+    int GetEnemiesForWave(int waveNum) => waveNum switch
+    {
+        1 => Settings.Wave1Enemies,
+        2 => Settings.Wave2Enemies,
+        3 => Settings.Wave3Enemies,
+        _ => 5
+    };
+
+    void SpawnEnemy(int wave)
+    {
+        var entity = World.CreateEntity();
+        var waypoints = new Queue<Vector3>(PathPoints.Select(p => p.transform.position));
+        var config = GetEnemyConfigForWave(wave);
+
+        entity.Add(new PositionComponent { Value = waypoints.Peek() });
+        entity.Add(new RotationComponent { Value = Quaternion.Euler(0, 90, 0) });
+        entity.Add(new HealthComponent { Current = config.Health, Max = config.Health });
+        entity.Add(new MovementComponent { Speed = config.Speed, RotationSpeed = config.RotationSpeed, IsMoving = true, Direction = Vector3.forward });
+        entity.Add(new EnemyComponent { Reward = config.Reward, Wave = wave });
+        entity.Add(new PathComponent { Waypoints = waypoints, CurrentIndex = 0 });
+        entity.Add(new AvoidanceComponent { AvoidRadius = Settings.AvoidanceRadius, AvoidStrength = Settings.AvoidanceStrength, AvoidDirection = Vector3.zero });
+
+        if (PrefabDatabase.EnemyPrefabs.TryGetValue(wave, out var prefabs) && prefabs.Count > 0)
+            entity.Add(new UnityObjectComponent { Obj = Object.Instantiate(prefabs[0], waypoints.Peek(), Quaternion.Euler(0, 90, 0)) });
+
+        waypoints.Dequeue();
+    }
+
+    EnemyWaveConfig GetEnemyConfigForWave(int wave)
+    {
+        foreach (var c in Settings.EnemyConfigs)
+            if (c.WaveNumber == wave) return c;
+        return new EnemyWaveConfig { WaveNumber = wave, Health = 50f, Speed = 3f, Reward = 10, RotationSpeed = 10f };
+    }
+}
+=== ./Assets/Scripts/ECS/Systems/ViewSystem.cs ===
+using UnityEngine;
+using System.Linq;
+
+public class ViewSystem : BaseSystem
+{
+    public override void Execute()
+    {
+        foreach (var entity in World.Query<UnityObjectComponent, PositionComponent>().ToList())
+        {
+            var view = entity.Get<UnityObjectComponent>();
+            var pos = entity.Get<PositionComponent>();
+
+            if (view.Obj == null) continue;
+
+            view.Obj.transform.position = pos.Value;
+
+            if (entity.Has<RotationComponent>())
+            {
+                var rot = entity.Get<RotationComponent>();
+                view.Obj.transform.rotation = rot.Value;
+            }
+        }
+    }
+}
+=== ./Assets/Scripts/ECS/Core/Components.cs ===
+using UnityEngine;
+using System.Collections.Generic;
+
+public class PositionComponent : Component
+{
+    public Vector3 Value;
+}
+
+public class RotationComponent : Component
+{
+    public Quaternion Value;
+}
+
+public class HealthComponent : Component
+{
+    public float Current;
+    public float Max;
+}
+
+public class MovementComponent : Component
+{
+    public float Speed;
+    public float RotationSpeed;
+    public Vector3 Direction;
+    public bool IsMoving;
+}
+
+public class EnemyComponent : Component
+{
+    public int Reward;
+    public int Wave;
+}
+
+public class PathComponent : Component
+{
+    public Queue<Vector3> Waypoints;
+    public int CurrentIndex;
+}
+
+public class TowerComponent : Component
+{
+    public int Level;
+    public float Damage;
+    public float Range;
+    public float Cooldown;
+    public float CooldownTimer;
+    public int TargetId;
+    public int SpotIndex;
+}
+
+public class PlayerComponent : Component
+{
+    public int Gold;
+    public int Lives;
+}
+
+public class ProjectileComponent : Component
+{
+    public int TargetId;
+    public float Damage;
+}
+
+public class UIComponent : Component
+{
+    public GameObject ActionPanel;      // Одна общая панель
+    public UnityEngine.UI.Button ActionButton; // Одна кнопка
+    public UnityEngine.UI.Text ActionText;     // Текст на кнопке/рядом
+    public UnityEngine.UI.Text GoldText;
+    public UnityEngine.UI.Text LivesText;
+    public UnityEngine.UI.Text WaveText;
+}
+
+public class UnityObjectComponent : Component
+{
+    public GameObject Obj;
+}
+
+public class WaveComponent : Component
+{
+    public int CurrentWave;
+    public int TotalWaves;
+    public float WaveTimer;
+    public float WaveInterval;
+    public bool WaveActive;
+    public int EnemiesToSpawn;
+    public int SpawnedCount;
+}
+
+public class AvoidanceComponent : Component
+{
+    public float AvoidRadius;
+    public float AvoidStrength;
+    public Vector3 AvoidDirection;
+}
+
+public class GameStateComponent : Component
+{
+    public bool IsGameOver;
+    public bool IsPaused;
+    public GameObject GameOverCanvas;
+    public bool IsVictory; // true = победа, false = поражение
+}
+=== ./Assets/Scripts/ECS/Core/Core.cs ===
+using UnityEngine;
+using System;
+using System.Linq;
+using System.Collections.Generic;
+
+
+public abstract class Component { }
+
+
+public abstract class BaseSystem
+{
+    public World World { get; set; }
+    
+    public abstract void Execute();
+    
+
+    public virtual void Cleanup() { }
+}
+
+
+public class Entity
+{
+    public int Id { get; }
+    public bool IsActive = true;
+    
+    private readonly Dictionary<Type, Component> _components = new();
+
+    public Entity(int id) => Id = id;
+
+    public void Add(Component component)
+    {
+        _components[component.GetType()] = component;
+    }
+
+    public T Get<T>() where T : Component
+    {
+        return (T)_components[typeof(T)];
+    }
+
+    public bool TryGet<T>(out T component) where T : Component
+    {
+        if (_components.TryGetValue(typeof(T), out var c))
+        {
+            component = (T)c;
+            return true;
+        }
+        component = null;
+        return false;
+    }
+
+    public bool Has<T>() where T : Component
+    {
+        return _components.ContainsKey(typeof(T));
+    }
+
+    public void Remove<T>() where T : Component
+    {
+        _components.Remove(typeof(T));
+    }
+
+    public void Destroy()
+    {
+        IsActive = false;
+        _components.Clear();
+    }
+}
+
+
+
+
+
+
+public class World
+{
+    private readonly List<Entity> _entities = new();
+    private readonly List<BaseSystem> _systems = new();
+    private int _nextId = 1;
+    private readonly Queue<Entity> _entityPool = new();
+
+
+    private readonly List<Entity> _entitiesToAdd = new();
+    private readonly List<Entity> _entitiesToRemove = new();
+    private bool _isUpdating = false;
+
+    public Entity CreateEntity()
+    {
+        Entity entity;
+        
+        if (_entityPool.TryDequeue(out entity))
+        {
+            entity.IsActive = true;
+        }
+        else
+        {
+            entity = new Entity(_nextId++);
+        }
+
+        if (_isUpdating)
+        {
+            _entitiesToAdd.Add(entity);
+        }
+        else
+        {
+            _entities.Add(entity);
+        }
+        
+        return entity;
+    }
+
+    public void DestroyEntity(Entity entity)
+    {
+        if (_isUpdating)
+        {
+            _entitiesToRemove.Add(entity);
+        }
+        else
+        {
+            entity.Destroy();
+            _entityPool.Enqueue(entity);
+            _entities.Remove(entity);
+        }
+    }
+
+
+    public IEnumerable<Entity> Query<T1>() where T1 : Component
+    {
+        foreach (var e in _entities)
+            if (e.IsActive && e.Has<T1>())
+                yield return e;
+    }
+
+
+    public IEnumerable<Entity> Query<T1, T2>() where T1 : Component where T2 : Component
+    {
+        foreach (var e in _entities)
+            if (e.IsActive && e.Has<T1>() && e.Has<T2>())
+                yield return e;
+    }
+
+
+    public IEnumerable<Entity> Query<T1, T2, T3>() 
+        where T1 : Component where T2 : Component where T3 : Component
+    {
+        foreach (var e in _entities)
+            if (e.IsActive && e.Has<T1>() && e.Has<T2>() && e.Has<T3>())
+                yield return e;
+    }
+
+
+    public IEnumerable<Entity> Query<T1, T2, T3, T4>() 
+        where T1 : Component where T2 : Component where T3 : Component where T4 : Component
+    {
+        foreach (var e in _entities)
+            if (e.IsActive && e.Has<T1>() && e.Has<T2>() && e.Has<T3>() && e.Has<T4>())
+                yield return e;
+    }
+
+
+    public IEnumerable<Entity> Query<T1, T2, T3, T4, T5>() 
+        where T1 : Component where T2 : Component where T3 : Component 
+        where T4 : Component where T5 : Component
+    {
+        foreach (var e in _entities)
+            if (e.IsActive && e.Has<T1>() && e.Has<T2>() && e.Has<T3>() && e.Has<T4>() && e.Has<T5>())
+                yield return e;
+    }
+
+    public List<Entity> GetAll() => _entities;
+
+    public void AddSystem(BaseSystem system)
+    {
+        system.World = this;
+        _systems.Add(system);
+    }
+
+    public void Update()
+    {
+        _isUpdating = true;
+
+        foreach (var system in _systems)
+            system.Execute();
+
+        _isUpdating = false;
+
+
+        foreach (var entity in _entitiesToAdd)
+            _entities.Add(entity);
+        
+        foreach (var entity in _entitiesToRemove)
+        {
+            entity.Destroy();
+            _entityPool.Enqueue(entity);
+            _entities.Remove(entity);
+        }
+
+        _entitiesToAdd.Clear();
+        _entitiesToRemove.Clear();
+
+        _entities.RemoveAll(e => !e.IsActive);
+    }
+
+    public void Cleanup()
+    {
+        foreach (var system in _systems)
+            system.Cleanup();
+    }
+}
+
+public static class PrefabDatabase
+{
+    public static Dictionary<int, List<GameObject>> EnemyPrefabs { get; private set; }
+    public static Dictionary<int, GameObject> TowerPrefabs { get; private set; }
+    public static GameObject ProjectilePrefab { get; private set; }
+
+    public static void Initialize(
+        Dictionary<int, List<GameObject>> enemies,
+        Dictionary<int, GameObject> towers,
+        GameObject projectile)
+    {
+        EnemyPrefabs = enemies;
+        TowerPrefabs = towers;
+        ProjectilePrefab = projectile;
+    }
+
+    public static GameObject GetTowerPrefab(int level)
+    {
+        return TowerPrefabs.TryGetValue(level, out var prefab) ? prefab : null;
+    }
+
+    public static List<GameObject> GetEnemyPrefabs(int wave)
+    {
+        return EnemyPrefabs.TryGetValue(wave, out var prefabs) ? prefabs : null;
+    }
+}

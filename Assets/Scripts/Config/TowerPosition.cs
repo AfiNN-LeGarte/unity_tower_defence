@@ -5,6 +5,7 @@ using System;
 public class TowerPosition
 {
     public GameObject Spot;
+    public Renderer SphereRenderer;
     public UnityEngine.UI.Button Button;
     public UnityEngine.UI.Text CostText;
 
