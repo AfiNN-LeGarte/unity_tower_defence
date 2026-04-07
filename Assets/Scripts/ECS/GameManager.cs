@@ -1,47 +1,48 @@
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
-    [Header("📋 Settings")]
     public GameSettings Settings;
 
-    [Header("🛣️ Path")]
     public List<GameObject> PathPoints;
 
-    [Header("🗼 Towers")]
     public List<TowerPosition> TowerPositions = new();
 
-    [Header("🎯 Projectiles")]
     public GameObject ProjectilePrefab;
 
-    [Header("🖥️ UI")]
-    public Text GoldText;
-    public Text LivesText;
-    public Text WaveText;
+    public GameObject GoldTextObj;
+    public GameObject LivesTextObj;
+    public GameObject WaveTextObj;
 
-    [Header("💀 Game Over")]
     public GameObject GameOverCanvas;
-    public Button RestartButton;
+    public GameObject RestartButtonObj;
 
     World world;
     TowerPlacementSystem placementSystem;
+    bool isGameStarted = false;
 
     void Start()
     {
         if (Settings == null)
         {
-            Debug.LogError("❌ GameSettings не назначен в Inspector!");
+            Debug.LogError("GameSettings не назначен в Inspector!");
             return;
         }
 
         if (GameOverCanvas != null)
             GameOverCanvas.SetActive(false);
 
-        world = new World();
         InitializePrefabDatabase();
+    }
+
+    public void StartGame()
+    {
+        if (isGameStarted) return;
+        isGameStarted = true;
+
+        world = new World();
 
         var gameState = world.CreateEntity();
         gameState.Add(new GameStateComponent
@@ -73,9 +74,9 @@ public class GameManager : MonoBehaviour
         var ui = world.CreateEntity();
         ui.Add(new UIComponent
         {
-            GoldText = GoldText,
-            LivesText = LivesText,
-            WaveText = WaveText,
+            GoldTextObj = GoldTextObj,
+            LivesTextObj = LivesTextObj,
+            WaveTextObj = WaveTextObj,
             TowerPositions = TowerPositions
         });
 
@@ -96,14 +97,14 @@ public class GameManager : MonoBehaviour
 
         SubscribeToButtons();
 
-        if (RestartButton != null)
-            RestartButton.onClick.AddListener(OnRestartClicked);
+        SubscribeToRestartButton();
 
-        Debug.Log("✅ Игра запущена: " + Settings.name);
+        Debug.Log("Игра запущена: " + Settings.name);
     }
 
     void Update()
     {
+        if (!isGameStarted || world == null) return;
         world.Update();
     }
 
@@ -121,6 +122,17 @@ public class GameManager : MonoBehaviour
                 int index = pos.Index;
                 pos.Button.onClick.AddListener(() => OnTowerClicked(index));
             }
+        }
+    }
+
+
+    void SubscribeToRestartButton()
+    {
+        if (RestartButtonObj != null)
+        {
+            var button = RestartButtonObj.GetComponent<UnityEngine.UI.Button>();
+            if (button != null)
+                button.onClick.AddListener(OnRestartClicked);
         }
     }
 
@@ -162,7 +174,7 @@ public class GameManager : MonoBehaviour
 
     void OnRestartClicked()
     {
-        Debug.Log("🔄 Рестарт игры...");
+        Debug.Log("Рестарт игры...");
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }

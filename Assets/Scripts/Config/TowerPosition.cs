@@ -1,16 +1,13 @@
 using UnityEngine;
-using UnityEngine.UI;
 using System;
 
 [Serializable]
 public class TowerPosition
 {
-    [Header("📍 References")]
     public GameObject Spot;
-    public Button Button;
-    public Text CostText;
+    public UnityEngine.UI.Button Button;
+    public UnityEngine.UI.Text CostText;
 
-    [Header("⚙️ Config")]
     public int Index;
     public bool IsEnabled = true;
 
