@@ -1,72 +1,25 @@
 ```
-# Unity-specific ignores
+# Build artifacts
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.lib
+*.out
+
+# Dependencies
+Packages/
 Library/
 Temp/
 Obj/
-Build/
-Builds/
-*.unityproj
-*.sln
-*.user
-*.userprefs
-*.pidb
-*.booproj
-*.svd
-*.pdb
-*.meta
-*.prefab
-*.asset
-*.scenes
-*.unity
-*.unitypackage
-*.config
-*.csproj
-*.sln
-*.user
-*.userprefs
-*.pidb
-*.booproj
-*.svd
-*.pdb
-*.meta
-*.prefab
-*.asset
-*.scenes
-*.unity
-*.unitypackage
-*.config
-
-# Build artifacts
-*.dll
-*.exe
-*.so
-*.dylib
-*.jar
 
 # Logs
 *.log
 
-# Environment
-.env
-.env.local
-.env.*
-
-# Dependencies
-node_modules/
-.venv/
-venv/
-__pycache__/
-.mypy_cache/
-.pytest_cache/
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# OS
-.DS_Store
-Thumbs.db
+# User settings
+*.userprefs
+*.user
+.vs/
+.user
 ```
