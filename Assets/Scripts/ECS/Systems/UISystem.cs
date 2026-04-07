@@ -35,6 +35,10 @@ public class UISystem : BaseSystem
             // Скрываем StartPanel если есть
             if (uiComp.StartPanel != null)
                 uiComp.StartPanel.SetActive(false);
+            
+            // Вызываем сброс состояния GameManager для возможности перезапуска
+            var gameManager = Object.FindObjectOfType<GameManager>();
+            gameManager?.ResetGameState();
         }
 
         if (state?.IsGameOver == true) return;

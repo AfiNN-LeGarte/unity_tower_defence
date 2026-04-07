@@ -81,6 +81,10 @@ public class SpawnSystem : BaseSystem
                             if (uiComp.StartPanel != null)
                                 uiComp.StartPanel.SetActive(true);
                         }
+
+                        // Вызываем сброс состояния GameManager для возможности перезапуска
+                        var gameManager = Object.FindObjectOfType<GameManager>();
+                        gameManager?.ResetGameState();
                     }
                     return;
                 }

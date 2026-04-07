@@ -147,7 +147,15 @@ public class GameManager : MonoBehaviour
 
     public void OnTowerClicked(int spotIndex)
     {
-        placementSystem.OnTowerClicked(spotIndex);
+        placementSystem?.OnTowerClicked(spotIndex);
+    }
+
+    public void OnStartButtonClicked()
+    {
+        if (!isGameStarted)
+        {
+            StartGame();
+        }
     }
 
     int GetEnemiesForWave(int wave)
@@ -205,5 +213,21 @@ public class GameManager : MonoBehaviour
         StartGame();
         
         Debug.Log("Игра перезапущена");
+    }
+
+    public void ResetGameState()
+    {
+        world?.Cleanup();
+        world = null;
+        isGameStarted = false;
+        
+        if (GameOverCanvas != null)
+            GameOverCanvas.SetActive(false);
+        
+        if (RestartButtonObj != null)
+            RestartButtonObj.SetActive(false);
+        
+        if (StartPanel != null)
+            StartPanel.SetActive(true);
     }
 }
