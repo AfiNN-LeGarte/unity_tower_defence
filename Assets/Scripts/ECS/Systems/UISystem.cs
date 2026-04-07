@@ -40,9 +40,9 @@ public class UISystem : BaseSystem
             // GameManager.ResetGameState() будет вызван при нажатии кнопки рестарт
             
             // Обновляем текст жизней перед выходом
-            UnityEngine.UI.Text livesText = null;
-            if (uiComp.LivesTextObj != null) livesText = uiComp.LivesTextObj.GetComponent<UnityEngine.UI.Text>();
-            if (livesText != null) livesText.text = $"Lives: {pComp.Lives}";
+            UnityEngine.UI.Text livesTextLocal = null;
+            if (uiComp.LivesTextObj != null) livesTextLocal = uiComp.LivesTextObj.GetComponent<UnityEngine.UI.Text>();
+            if (livesTextLocal != null) livesTextLocal.text = $"Lives: {pComp.Lives}";
             
             return; // Выходим сразу, чтобы не обновлять остальной UI
         }
