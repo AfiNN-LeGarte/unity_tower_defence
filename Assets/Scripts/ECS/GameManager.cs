@@ -182,6 +182,24 @@ public class GameManager : MonoBehaviour
     void OnRestartClicked()
     {
         Debug.Log("Рестарт игры...");
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        
+        // Скрываем панель GameOver перед перезагрузкой
+        if (GameOverCanvas != null)
+            GameOverCanvas.SetActive(false);
+        
+        // Скрываем кнопку рестарт
+        if (RestartButtonObj != null)
+            RestartButtonObj.SetActive(false);
+        
+        // Показываем стартовую панель
+        if (StartPanel != null)
+            StartPanel.SetActive(true);
+        
+        // Очищаем текущий мир и сбрасываем состояние
+        world?.Cleanup();
+        world = null;
+        isGameStarted = false;
+        
+        Debug.Log("Игра сброшена к стартовому экрану");
     }
 }
