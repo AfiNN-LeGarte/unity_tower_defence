@@ -1,34 +1,46 @@
-```
 # Unity specific ignores
 Library/
 Temp/
 Obj/
 Build/
 Logs/
-UserSettings/
+*.unityproj
+*.sln
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.csproj
+*.rsp
+*.meta
+!Assets/**/.gitignore
 
-# Compiled binaries
+# Build artifacts
 *.dll
 *.exe
 *.pdb
-*.meta
+*.mdb
+*.exe.config
 
-# Dependencies
-Packages/
-node_modules/
+# Configuration
+.vscode/
+.idea/
 
 # Environment
 .env
 .env.local
-*.env.*
+.env.*
 
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
+# Logs
+*.log
+crashlytics-build.properties
 
 # OS generated files
 .DS_Store
 Thumbs.db
-```
+ehthumbs.db
+Icon?
+.CFUserTextEncoding
+*.swp
+*.swo
+*~
