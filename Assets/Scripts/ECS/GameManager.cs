@@ -20,6 +20,9 @@ public class GameManager : MonoBehaviour
     public GameObject GameOverCanvas;
     public GameObject RestartButtonObj;
     public GameObject StartPanel;
+    
+    public GameObject VictoryTextObj; // Текст победы (назначить в инспекторе)
+    public GameObject DefeatTextObj;  // Текст поражения (назначить в инспекторе)
 
     World world;
     TowerPlacementSystem placementSystem;
@@ -87,7 +90,9 @@ public class GameManager : MonoBehaviour
             WaveTextObj = WaveTextObj,
             RestartButtonObj = RestartButtonObj,
             TowerPositions = TowerPositions,
-            StartPanel = StartPanel
+            StartPanel = StartPanel,
+            VictoryTextObj = VictoryTextObj,
+            DefeatTextObj = DefeatTextObj
         });
 
         placementSystem = new TowerPlacementSystem { Settings = Settings };
@@ -218,6 +223,21 @@ public class GameManager : MonoBehaviour
                         Object.Destroy(view.Obj);
                 }
             }
+            
+            // Также уничтожаем все остальные объекты (враги, снаряды и т.д.)
+            var allObjects = world.Query<UnityObjectComponent>().ToList();
+            foreach (var obj in allObjects)
+            {
+                if (obj.Obj != null)
+                    Object.Destroy(obj.Obj);
+            }
+            
+            // Очищаем все сущности мира
+            var allEntities = world.GetAll().ToList();
+            foreach (var entity in allEntities)
+            {
+                world.DestroyEntity(entity);
+            }
         }
         
         world?.Cleanup();
@@ -229,6 +249,12 @@ public class GameManager : MonoBehaviour
         
         if (RestartButtonObj != null)
             RestartButtonObj.SetActive(false);
+        
+        // Скрываем тексты победы/поражения
+        if (VictoryTextObj != null)
+            VictoryTextObj.SetActive(false);
+        if (DefeatTextObj != null)
+            DefeatTextObj.SetActive(false);
         
         if (StartPanel != null && showStartPanel)
             StartPanel.SetActive(true);
