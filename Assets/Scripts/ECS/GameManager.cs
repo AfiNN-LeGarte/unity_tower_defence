@@ -200,7 +200,7 @@ public class GameManager : MonoBehaviour
         Debug.Log("Рестарт игры...");
         
         // Сбрасываем состояние игры (уничтожаем башни, очищаем мир)
-        ResetGameState(showStartPanel: false);
+        ResetGameState();
         
         // Сразу запускаем игру заново
         StartGame();
@@ -208,7 +208,7 @@ public class GameManager : MonoBehaviour
         Debug.Log("Игра перезапущена");
     }
 
-    public void ResetGameState(bool showStartPanel = true)
+    public void ResetGameState()
     {
         // Сначала уничтожаем все объекты башен
         if (world != null)
@@ -218,18 +218,19 @@ public class GameManager : MonoBehaviour
             {
                 if (tower.Has<UnityObjectComponent>())
                 {
-                    var view = tower.Get<UnityObjectComponent>();
-                    if (view.Obj != null)
-                        Object.Destroy(view.Obj);
+                    var viewComp = tower.Get<UnityObjectComponent>();
+                    if (viewComp.Obj != null)
+                        Object.Destroy(viewComp.Obj);
                 }
             }
             
             // Также уничтожаем все остальные объекты (враги, снаряды и т.д.)
             var allObjects = world.Query<UnityObjectComponent>().ToList();
-            foreach (var obj in allObjects)
+            foreach (var objEntity in allObjects)
             {
-                if (obj.Obj != null)
-                    Object.Destroy(obj.Obj);
+                var viewComp = objEntity.Get<UnityObjectComponent>();
+                if (viewComp.Obj != null)
+                    Object.Destroy(viewComp.Obj);
             }
             
             // Очищаем все сущности мира
@@ -244,19 +245,12 @@ public class GameManager : MonoBehaviour
         world = null;
         isGameStarted = false;
         
+        // Скрываем панель результата (она же GameOverCanvas)
         if (GameOverCanvas != null)
             GameOverCanvas.SetActive(false);
         
-        if (RestartButtonObj != null)
-            RestartButtonObj.SetActive(false);
-        
-        // Скрываем тексты победы/поражения
-        if (VictoryTextObj != null)
-            VictoryTextObj.SetActive(false);
-        if (DefeatTextObj != null)
-            DefeatTextObj.SetActive(false);
-        
-        if (StartPanel != null && showStartPanel)
+        // Показываем стартовую панель (которая содержит нашу единственную кнопку)
+        if (StartPanel != null)
             StartPanel.SetActive(true);
     }
 }

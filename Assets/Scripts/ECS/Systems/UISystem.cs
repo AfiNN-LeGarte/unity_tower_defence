@@ -20,7 +20,12 @@ public class UISystem : BaseSystem
         var uiComp = ui.Get<UIComponent>();
         var state = gameState?.Get<GameStateComponent>();
 
-        if (state != null && pComp.Lives <= 0 && !state.IsGameOver)
+        // Проверяем, игра уже закончена? Если да - просто выходим
+        if (state != null && state.IsGameOver)
+            return;
+
+        // Проверка на поражение (жизни <= 0)
+        if (pComp.Lives <= 0)
         {
             state.IsGameOver = true;
             state.IsVictory = false; // Поражение
@@ -52,8 +57,7 @@ public class UISystem : BaseSystem
             return; // Выходим сразу, чтобы не обновлять остальной UI
         }
 
-        if (state?.IsGameOver == true) return;
-        
+        // Обычное обновление UI во время игры
         UnityEngine.UI.Text goldText = null;
         UnityEngine.UI.Text livesText = null;
         UnityEngine.UI.Text waveText = null;
