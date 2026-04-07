@@ -19,20 +19,17 @@ public class UISystem : BaseSystem
         var uiComp = ui.Get<UIComponent>();
         var state = gameState?.Get<GameStateComponent>();
 
-        // 1. Проверка условия поражения
         if (state != null && !state.IsGameOver && pComp.Lives <= 0)
         {
             state.IsGameOver = true;
             state.IsVictory = false;
         }
 
-        // 2. Обновление статистики
         if (uiComp.GoldText != null) uiComp.GoldText.text = $"Gold: {pComp.Gold}";
         if (uiComp.LivesText != null) uiComp.LivesText.text = $"Lives: {pComp.Lives}";
         if (uiComp.WaveText != null && wave != null)
             uiComp.WaveText.text = $"Wave: {wave.Get<WaveComponent>().CurrentWave}/{wave.Get<WaveComponent>().TotalWaves}";
 
-        // 3. Управление панелью с кнопкой
         if (state != null && state.IsGameOver)
         {
             if (uiComp.ActionPanel != null && !uiComp.ActionPanel.activeSelf)
@@ -47,7 +44,6 @@ public class UISystem : BaseSystem
         }
         else
         {
-            // Во время активной игры панель скрыта
             if (uiComp.ActionPanel != null && uiComp.ActionPanel.activeSelf)
                 uiComp.ActionPanel.SetActive(false);
         }

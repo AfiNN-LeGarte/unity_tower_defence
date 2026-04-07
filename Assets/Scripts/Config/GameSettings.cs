@@ -4,9 +4,11 @@ using System;
 [CreateAssetMenu(fileName = "GameSettings", menuName = "ECS/Game Settings")]
 public class GameSettings : ScriptableObject
 {
+    [Header("Player")]
     public int StartGold = 200;
     public int StartLives = 10;
 
+    [Header("Waves")]
     public int TotalWaves = 3;
     public float WaveInterval = 10f;
     public float FirstWaveDelay = 2f;
@@ -17,14 +19,17 @@ public class GameSettings : ScriptableObject
 
     public EnemyWaveConfig[] EnemyConfigs;
 
+    [Header("Towers")]
     public TowerLevelConfig[] TowerConfigs;
     public int BaseTowerCost = 100;
     public float UpgradeCostMultiplier = 0.5f;
     public float UpgradeCostIncrease = 1.5f;
 
+    [Header("Combat")]
     public float HitDistance = 0.5f;
     public float DestroyY = -10f;
 
+    [Header("Movement")]
     public float PathCheckDistance = 0.5f;
     public float AvoidanceRadius = 5f;
     public float AvoidanceStrength = 2.5f;
