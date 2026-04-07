@@ -3,69 +3,46 @@ using System.Linq;
 
 public class ProjectileSystem : BaseSystem
 {
-    public GameSettings Settings; // ✅ Настройки
+    public GameSettings Settings;
 
     public override void Execute()
     {
+        if (Settings == null) return;
+
         foreach (var proj in World.Query<ProjectileComponent, PositionComponent, UnityObjectComponent>().ToList())
         {
             var pComp = proj.Get<ProjectileComponent>();
             var pPos = proj.Get<PositionComponent>();
             var pView = proj.Get<UnityObjectComponent>();
 
-            if (pView.Obj == null)
+            if (pView.Obj == null || pPos.Value.y < Settings.DestroyY)
             {
+                if (pView.Obj != null) Object.Destroy(pView.Obj);
                 World.DestroyEntity(proj);
                 continue;
             }
 
-            var target = World.GetAll().FirstOrDefault(e => 
-                e.Id == pComp.TargetId && 
-                e.IsActive && 
-                e.Has<PositionComponent>() && 
-                e.Has<HealthComponent>());
-
-            if (target == null)
+            var target = World.GetAll().FirstOrDefault(e => e.Id == pComp.TargetId && e.IsActive && e.Has<HealthComponent>());
+            if (target == null || target.Get<HealthComponent>().Current <= 0)
             {
-                Object.Destroy(pView.Obj);
+                if (pView.Obj != null) Object.Destroy(pView.Obj);
                 World.DestroyEntity(proj);
                 continue;
             }
 
-            var targetHealth = target.Get<HealthComponent>();
-            if (targetHealth.Current <= 0)
+            float dist = Vector3.Distance(pPos.Value, target.Get<PositionComponent>().Value);
+            if (dist < Settings.HitDistance)
             {
-                Object.Destroy(pView.Obj);
-                World.DestroyEntity(proj);
-                continue;
-            }
+                var health = target.Get<HealthComponent>();
+                health.Current -= pComp.Damage;
 
-            var targetPos = target.Get<PositionComponent>();
-            var distance = Vector3.Distance(pPos.Value, targetPos.Value);
-            
-            if (distance < (Settings?.HitDistance ?? 0.5f))
-            {
-                targetHealth.Current -= pComp.Damage;
-
-                if (targetHealth.Current <= 0)
+                if (health.Current <= 0 && target.Has<EnemyComponent>())
                 {
-                    var enemy = target.Get<EnemyComponent>();
                     var player = World.Query<PlayerComponent>().FirstOrDefault();
-                    
-                    if (player != null && enemy != null)
-                    {
-                        player.Get<PlayerComponent>().Gold += enemy.Reward;
-                    }
+                    if (player != null) player.Get<PlayerComponent>().Gold += target.Get<EnemyComponent>().Reward;
                 }
 
-                Object.Destroy(pView.Obj);
-                World.DestroyEntity(proj);
-                continue;
-            }
-
-            if (pPos.Value.y < (Settings?.DestroyY ?? -10f))
-            {
-                Object.Destroy(pView.Obj);
+                if (pView.Obj != null) Object.Destroy(pView.Obj);
                 World.DestroyEntity(proj);
             }
         }

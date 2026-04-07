@@ -3,10 +3,12 @@ using System.Linq;
 
 public class UISystem : BaseSystem
 {
-    public GameSettings Settings; // ✅ Настройки
-    
+    public GameSettings Settings;
+
     public override void Execute()
     {
+        if (Settings == null) return;
+
         var player = World.Query<PlayerComponent>().FirstOrDefault();
         var ui = World.Query<UIComponent>().FirstOrDefault();
         var wave = World.Query<WaveComponent>().FirstOrDefault();
@@ -14,106 +16,21 @@ public class UISystem : BaseSystem
 
         if (player == null || ui == null) return;
 
-        var playerComp = player.Get<PlayerComponent>();
+        var pComp = player.Get<PlayerComponent>();
         var uiComp = ui.Get<UIComponent>();
+        var state = gameState?.Get<GameStateComponent>();
 
-
-        if (gameState != null)
+        if (state != null && pComp.Lives <= 0 && !state.IsGameOver)
         {
-            var state = gameState.Get<GameStateComponent>();
-            
-            if (playerComp.Lives <= 0 && !state.IsGameOver)
-            {
-                state.IsGameOver = true;
-                
-                if (state.GameOverCanvas != null)
-                {
-                    state.GameOverCanvas.SetActive(true);
-                }
-                
-                Debug.Log("GAME OVER!");
-            }
-            
-            if (state.IsGameOver)
-            {
-                return;
-            }
+            state.IsGameOver = true;
+            if (state.GameOverCanvas != null) state.GameOverCanvas.SetActive(true);
         }
 
+        if (state?.IsGameOver == true) return;
 
-        if (uiComp.GoldText != null)
-            uiComp.GoldText.text = $"Gold {playerComp.Gold}";
-
-        if (uiComp.LivesText != null)
-            uiComp.LivesText.text = $"Lives: {playerComp.Lives}";
-
+        if (uiComp.GoldText != null) uiComp.GoldText.text = $"Gold: {pComp.Gold}";
+        if (uiComp.LivesText != null) uiComp.LivesText.text = $"Lives: {pComp.Lives}";
         if (uiComp.WaveText != null && wave != null)
-            uiComp.WaveText.text = $"Волна: {wave.Get<WaveComponent>().CurrentWave}/{wave.Get<WaveComponent>().TotalWaves}";
-
-
-        if (uiComp.TowerPositions != null)
-        {
-            foreach (var towerPos in uiComp.TowerPositions)
-            {
-                if (towerPos == null || towerPos.CostText == null) continue;
-                
-
-                UpdateTowerButtonText(towerPos, playerComp.Gold, Settings);
-            }
-        }
-    }
-
-
-    void UpdateTowerButtonText(TowerPosition pos, int playerGold, GameSettings settings)
-    {
-        if (!pos.IsEnabled)
-        {
-            pos.CostText.text = "Block";
-            pos.CostText.color = Color.red;
-        }
-        else if (pos.IsOccupied)
-        {
-
-            int upgradeCost = Mathf.RoundToInt(settings.BaseTowerCost * settings.UpgradeCostMultiplier);
-            
-            if (pos.TowerLevel < 3 && playerGold >= upgradeCost)
-            {
-                pos.CostText.text = $"UP {GetUpgradeCost(pos.TowerLevel)}";
-                pos.CostText.color = Color.green;
-            }
-            else if (pos.TowerLevel >= 3)
-            {
-                pos.CostText.text = "MAX";
-                pos.CostText.color = Color.gray;
-            }
-            else
-            {
-                pos.CostText.text = $"UP {upgradeCost}";
-                pos.CostText.color = Color.red;
-            }
-        }
-        else
-        {
-
-            int towerCost = settings.BaseTowerCost;
-            
-            if (playerGold >= towerCost)
-            {
-                pos.CostText.text = $"Buy: {towerCost}";
-                pos.CostText.color = Color.black;
-            }
-            else
-            {
-                pos.CostText.text = $"Buy: {towerCost}";
-                pos.CostText.color = Color.red;
-            }
-        }
-    }
-
-    int GetUpgradeCost(int currentLevel)
-    {
-        float cost = Settings.BaseTowerCost * Settings.UpgradeCostMultiplier;
-        cost *= Mathf.Pow(Settings.UpgradeCostIncrease, currentLevel - 1);
-        return Mathf.RoundToInt(cost);
+            uiComp.WaveText.text = $"Wave: {wave.Get<WaveComponent>().CurrentWave}/{wave.Get<WaveComponent>().TotalWaves}";
     }
 }

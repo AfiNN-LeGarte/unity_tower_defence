@@ -6,7 +6,7 @@ using System.Collections.Generic;
 public class GameManager : MonoBehaviour
 {
     [Header("📋 Settings")]
-    public GameSettings Settings; // ✅ Перетаскиваем ассет из проекта
+    public GameSettings Settings;
 
     [Header("🛣️ Path")]
     public List<GameObject> PathPoints;
@@ -21,43 +21,38 @@ public class GameManager : MonoBehaviour
     public Text GoldText;
     public Text LivesText;
     public Text WaveText;
-    
+
     [Header("💀 Game Over")]
     public GameObject GameOverCanvas;
     public Button RestartButton;
 
-    World _world;
+    World world;
+    TowerPlacementSystem placementSystem;
 
     void Start()
     {
-
         if (Settings == null)
         {
             Debug.LogError("❌ GameSettings не назначен в Inspector!");
             return;
         }
 
-
         if (GameOverCanvas != null)
             GameOverCanvas.SetActive(false);
 
-        _world = new World();
-
-
+        world = new World();
         InitializePrefabDatabase();
 
-
-        var gameStateEntity = _world.CreateEntity();
-        gameStateEntity.Add(new GameStateComponent
+        var gameState = world.CreateEntity();
+        gameState.Add(new GameStateComponent
         {
             IsGameOver = false,
             IsPaused = false,
             GameOverCanvas = GameOverCanvas
         });
 
-
-        var waveEntity = _world.CreateEntity();
-        waveEntity.Add(new WaveComponent
+        var wave = world.CreateEntity();
+        wave.Add(new WaveComponent
         {
             CurrentWave = 1,
             TotalWaves = Settings.TotalWaves,
@@ -68,16 +63,14 @@ public class GameManager : MonoBehaviour
             SpawnedCount = 0
         });
 
-
-        var player = _world.CreateEntity();
-        player.Add(new PlayerComponent 
-        { 
-            Gold = Settings.StartGold, 
-            Lives = Settings.StartLives 
+        var player = world.CreateEntity();
+        player.Add(new PlayerComponent
+        {
+            Gold = Settings.StartGold,
+            Lives = Settings.StartLives
         });
 
-
-        var ui = _world.CreateEntity();
+        var ui = world.CreateEntity();
         ui.Add(new UIComponent
         {
             GoldText = GoldText,
@@ -86,56 +79,55 @@ public class GameManager : MonoBehaviour
             TowerPositions = TowerPositions
         });
 
+        placementSystem = new TowerPlacementSystem { Settings = Settings };
 
-        _world.AddSystem(new SpawnSystem 
-        { 
+        world.AddSystem(new SpawnSystem
+        {
             PathPoints = PathPoints,
-            EnemyPrefabs = PrefabDatabase.EnemyPrefabs,
-            Settings = Settings // ✅ Передаём настройки
-        });
-        _world.AddSystem(new MovementSystem
-        {
-            Settings = Settings // ✅ Передаём настройки
-        });
-        _world.AddSystem(new TowerSystem 
-        { 
-            ProjectilePrefab = PrefabDatabase.ProjectilePrefab,
             Settings = Settings
         });
-        _world.AddSystem(new ProjectileSystem
-        {
-            Settings = Settings
-        });
-        _world.AddSystem(new CleanupSystem());
-        _world.AddSystem(new ViewSystem());
-        _world.AddSystem(new UISystem
-        {
-            Settings = Settings
-        });
-        _world.AddSystem(new TowerPlacementSystem
-        {
-            Settings = Settings
-        });
+        world.AddSystem(new MovementSystem { Settings = Settings });
+        world.AddSystem(new TowerSystem { Settings = Settings });
+        world.AddSystem(new ProjectileSystem { Settings = Settings });
+        world.AddSystem(new CleanupSystem());
+        world.AddSystem(new ViewSystem());
+        world.AddSystem(new UISystem { Settings = Settings });
+        world.AddSystem(placementSystem);
 
+        SubscribeToButtons();
 
         if (RestartButton != null)
-        {
             RestartButton.onClick.AddListener(OnRestartClicked);
-        }
 
-        Debug.Log("✅ Игра запущена с настройками: " + Settings.name);
+        Debug.Log("✅ Игра запущена: " + Settings.name);
     }
 
     void Update()
     {
-        _world.Update();
+        world.Update();
     }
 
     void OnDestroy()
     {
-        _world?.Cleanup();
+        world?.Cleanup();
     }
 
+    void SubscribeToButtons()
+    {
+        foreach (var pos in TowerPositions)
+        {
+            if (pos.Button != null)
+            {
+                int index = pos.Index;
+                pos.Button.onClick.AddListener(() => OnTowerClicked(index));
+            }
+        }
+    }
+
+    public void OnTowerClicked(int spotIndex)
+    {
+        placementSystem.OnTowerClicked(spotIndex);
+    }
 
     int GetEnemiesForWave(int wave)
     {
@@ -153,27 +145,20 @@ public class GameManager : MonoBehaviour
         var enemyPrefabs = new Dictionary<int, List<GameObject>>();
         var towerPrefabs = new Dictionary<int, GameObject>();
 
-
         foreach (var config in Settings.EnemyConfigs)
         {
             if (config.Prefab != null)
-            {
                 enemyPrefabs[config.WaveNumber] = new List<GameObject> { config.Prefab };
-            }
         }
-
 
         foreach (var config in Settings.TowerConfigs)
         {
             if (config.Prefab != null)
-            {
                 towerPrefabs[config.Level] = config.Prefab;
-            }
         }
 
         PrefabDatabase.Initialize(enemyPrefabs, towerPrefabs, ProjectilePrefab);
     }
-
 
     void OnRestartClicked()
     {

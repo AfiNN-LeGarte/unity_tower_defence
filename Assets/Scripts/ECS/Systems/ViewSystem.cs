@@ -1,14 +1,11 @@
 using UnityEngine;
-
-
-
-
+using System.Linq;
 
 public class ViewSystem : BaseSystem
 {
     public override void Execute()
     {
-        foreach (var entity in World.Query<UnityObjectComponent, PositionComponent>())
+        foreach (var entity in World.Query<UnityObjectComponent, PositionComponent>().ToList())
         {
             var view = entity.Get<UnityObjectComponent>();
             var pos = entity.Get<PositionComponent>();

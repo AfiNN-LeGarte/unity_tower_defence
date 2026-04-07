@@ -1,31 +1,18 @@
 using UnityEngine;
 using System.Linq;
 
-
-
-
-
 public class CleanupSystem : BaseSystem
 {
     public override void Execute()
     {
-        foreach (var entity in World.GetAll())
+        var deadEntities = World.GetAll().Where(e => !e.IsActive).ToList();
+        foreach (var e in deadEntities)
         {
-            if (!entity.IsActive) continue;
-
-            if (entity.Has<HealthComponent>())
+            if (e.Has<UnityObjectComponent>())
             {
-                var health = entity.Get<HealthComponent>();
-                if (health.Current <= 0)
-                {
-                    if (entity.Has<UnityObjectComponent>())
-                    {
-                        var view = entity.Get<UnityObjectComponent>();
-                        if (view.Obj != null)
-                            Object.Destroy(view.Obj);
-                    }
-                    World.DestroyEntity(entity);
-                }
+                var view = e.Get<UnityObjectComponent>();
+                if (view.Obj != null)
+                    Object.Destroy(view.Obj);
             }
         }
     }
