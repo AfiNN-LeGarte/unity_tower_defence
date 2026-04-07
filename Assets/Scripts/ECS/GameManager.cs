@@ -85,7 +85,8 @@ public class GameManager : MonoBehaviour
             LivesTextObj = LivesTextObj,
             WaveTextObj = WaveTextObj,
             RestartButtonObj = RestartButtonObj,
-            TowerPositions = TowerPositions
+            TowerPositions = TowerPositions,
+            StartPanel = StartPanel
         });
 
         placementSystem = new TowerPlacementSystem { Settings = Settings };
@@ -190,6 +191,10 @@ public class GameManager : MonoBehaviour
         
         if (RestartButtonObj != null)
             RestartButtonObj.SetActive(false);
+
+        // Также скрываем StartPanel если он есть
+        if (StartPanel != null)
+            StartPanel.SetActive(false);
         
         // Очищаем текущий мир и сбрасываем состояние
         world?.Cleanup();

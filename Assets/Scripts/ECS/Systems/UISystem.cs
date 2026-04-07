@@ -31,19 +31,14 @@ public class UISystem : BaseSystem
                 if (uiComp.RestartButtonObj != null)
                     uiComp.RestartButtonObj.SetActive(true);
             }
+
+            // Скрываем StartPanel если есть
+            if (uiComp.StartPanel != null)
+                uiComp.StartPanel.SetActive(false);
         }
 
         if (state?.IsGameOver == true) return;
         
-        // Если игра окончена, не обновляем спавн и движение врагов
-        var waveEntity = World.Query<WaveComponent>().FirstOrDefault();
-        if (waveEntity != null && state.IsGameOver)
-        {
-            // Останавливаем спавн новых врагов
-            var wave = waveEntity.Get<WaveComponent>();
-            wave.WaveActive = false;
-        }
-
         UnityEngine.UI.Text goldText = null;
         UnityEngine.UI.Text livesText = null;
         UnityEngine.UI.Text waveText = null;

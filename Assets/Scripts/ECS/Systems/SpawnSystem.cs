@@ -54,6 +54,37 @@ public class SpawnSystem : BaseSystem
             if (World.Query<EnemyComponent>().Count() == 0)
             {
                 wave.WaveActive = false;
+
+                // Если это была последняя волна - завершаем игру победой
+                if (wave.CurrentWave >= wave.TotalWaves)
+                {
+                    if (gameState != null)
+                    {
+                        var state = gameState.Get<GameStateComponent>();
+                        state.IsGameOver = true;
+
+                        // Показываем StartPanel как экран победы
+                        var uiEntity = World.Query<UIComponent>().FirstOrDefault();
+                        if (uiEntity != null)
+                        {
+                            var uiComp = uiEntity.Get<UIComponent>();
+
+                            // Скрываем GameOverCanvas если есть
+                            if (state.GameOverCanvas != null)
+                                state.GameOverCanvas.SetActive(false);
+
+                            // Показываем кнопку рестарт через UIComponent
+                            if (uiComp.RestartButtonObj != null)
+                                uiComp.RestartButtonObj.SetActive(true);
+
+                            // Показываем StartPanel
+                            if (uiComp.StartPanel != null)
+                                uiComp.StartPanel.SetActive(true);
+                        }
+                    }
+                    return;
+                }
+
                 wave.CurrentWave++;
                 wave.WaveTimer = wave.WaveInterval;
                 isSpawning = false;

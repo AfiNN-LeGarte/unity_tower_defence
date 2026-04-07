@@ -67,6 +67,7 @@ public class UIComponent : Component
     public GameObject WaveTextObj;
     public GameObject RestartButtonObj;
     public List<TowerPosition> TowerPositions;
+    public GameObject StartPanel;
 }
 
 public class UnityObjectComponent : Component
