@@ -18,6 +18,7 @@ public class GameManager : MonoBehaviour
 
     public GameObject GameOverCanvas;
     public GameObject RestartButtonObj;
+    public GameObject StartPanel;
 
     World world;
     TowerPlacementSystem placementSystem;
@@ -34,6 +35,9 @@ public class GameManager : MonoBehaviour
         if (GameOverCanvas != null)
             GameOverCanvas.SetActive(false);
 
+        if (StartPanel != null)
+            StartPanel.SetActive(true);
+
         InitializePrefabDatabase();
     }
 
@@ -41,6 +45,9 @@ public class GameManager : MonoBehaviour
     {
         if (isGameStarted) return;
         isGameStarted = true;
+
+        if (StartPanel != null)
+            StartPanel.SetActive(false);
 
         world = new World();
 
