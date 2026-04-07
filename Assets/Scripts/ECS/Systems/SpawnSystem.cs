@@ -63,7 +63,7 @@ public class SpawnSystem : BaseSystem
                         var state = gameState.Get<GameStateComponent>();
                         state.IsGameOver = true;
 
-                        // Показываем StartPanel как экран победы
+                        // Показываем экран победы через StartPanel
                         var uiEntity = World.Query<UIComponent>().FirstOrDefault();
                         if (uiEntity != null)
                         {
@@ -77,14 +77,16 @@ public class SpawnSystem : BaseSystem
                             if (uiComp.RestartButtonObj != null)
                                 uiComp.RestartButtonObj.SetActive(true);
 
-                            // Показываем StartPanel
+                            // Показываем StartPanel с текстом победы
                             if (uiComp.StartPanel != null)
+                            {
                                 uiComp.StartPanel.SetActive(true);
+                                // Можно добавить текст "Победа!" если нужно
+                            }
                         }
 
-                        // Вызываем сброс состояния GameManager для возможности перезапуска
-                        var gameManager = Object.FindObjectOfType<GameManager>();
-                        gameManager?.ResetGameState();
+                        // НЕ вызываем ResetGameState() здесь, чтобы не уничтожать башни преждевременно
+                        // GameManager.ResetGameState() будет вызван при нажатии кнопки рестарт или через UISystem
                     }
                     return;
                 }

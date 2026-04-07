@@ -36,9 +36,15 @@ public class UISystem : BaseSystem
             if (uiComp.StartPanel != null)
                 uiComp.StartPanel.SetActive(false);
             
-            // Вызываем сброс состояния GameManager для возможности перезапуска
-            var gameManager = Object.FindObjectOfType<GameManager>();
-            gameManager?.ResetGameState();
+            // НЕ вызываем ResetGameState() здесь, чтобы не уничтожать башни преждевременно
+            // GameManager.ResetGameState() будет вызван при нажатии кнопки рестарт
+            
+            // Обновляем текст жизней перед выходом
+            UnityEngine.UI.Text livesText = null;
+            if (uiComp.LivesTextObj != null) livesText = uiComp.LivesTextObj.GetComponent<UnityEngine.UI.Text>();
+            if (livesText != null) livesText.text = $"Lives: {pComp.Lives}";
+            
+            return; // Выходим сразу, чтобы не обновлять остальной UI
         }
 
         if (state?.IsGameOver == true) return;
