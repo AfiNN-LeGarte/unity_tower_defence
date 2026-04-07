@@ -84,6 +84,7 @@ public class GameManager : MonoBehaviour
             GoldTextObj = GoldTextObj,
             LivesTextObj = LivesTextObj,
             WaveTextObj = WaveTextObj,
+            RestartButtonObj = RestartButtonObj,
             TowerPositions = TowerPositions
         });
 
@@ -183,23 +184,21 @@ public class GameManager : MonoBehaviour
     {
         Debug.Log("Рестарт игры...");
         
-        // Скрываем панель GameOver перед перезагрузкой
+        // Скрываем панель GameOver и кнопку рестарт
         if (GameOverCanvas != null)
             GameOverCanvas.SetActive(false);
         
-        // Скрываем кнопку рестарт
         if (RestartButtonObj != null)
             RestartButtonObj.SetActive(false);
-        
-        // Показываем стартовую панель
-        if (StartPanel != null)
-            StartPanel.SetActive(true);
         
         // Очищаем текущий мир и сбрасываем состояние
         world?.Cleanup();
         world = null;
         isGameStarted = false;
         
-        Debug.Log("Игра сброшена к стартовому экрану");
+        // Сразу запускаем игру заново
+        StartGame();
+        
+        Debug.Log("Игра перезапущена");
     }
 }

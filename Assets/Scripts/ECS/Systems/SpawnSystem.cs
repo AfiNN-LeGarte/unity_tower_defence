@@ -17,6 +17,10 @@ public class SpawnSystem : BaseSystem
     {
         if (Settings == null) return;
 
+        var gameState = World.Query<GameStateComponent>().FirstOrDefault();
+        if (gameState != null && gameState.Get<GameStateComponent>().IsGameOver)
+            return;
+
         var waveEntity = World.Query<WaveComponent>().FirstOrDefault();
         if (waveEntity == null) return;
         var wave = waveEntity.Get<WaveComponent>();

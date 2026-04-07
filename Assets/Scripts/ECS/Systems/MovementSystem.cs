@@ -9,6 +9,10 @@ public class MovementSystem : BaseSystem
     {
         if (Settings == null) return;
 
+        var gameState = World.Query<GameStateComponent>().FirstOrDefault();
+        if (gameState != null && gameState.Get<GameStateComponent>().IsGameOver)
+            return;
+
         foreach (var proj in World.Query<ProjectileComponent, PositionComponent, MovementComponent>().ToList())
         {
             var pComp = proj.Get<ProjectileComponent>();

@@ -40,6 +40,15 @@ public class ProjectileSystem : BaseSystem
                 {
                     var player = World.Query<PlayerComponent>().FirstOrDefault();
                     if (player != null) player.Get<PlayerComponent>().Gold += target.Get<EnemyComponent>().Reward;
+                    
+                    // Уничтожаем врага
+                    if (target.Has<UnityObjectComponent>())
+                    {
+                        var enemyView = target.Get<UnityObjectComponent>();
+                        if (enemyView.Obj != null)
+                            Object.Destroy(enemyView.Obj);
+                    }
+                    World.DestroyEntity(target);
                 }
 
                 if (pView.Obj != null) Object.Destroy(pView.Obj);
