@@ -32,21 +32,19 @@ public class GameManager : MonoBehaviour
 
         InitializePrefabDatabase();
 
-        // 🔧 АВТО-НАСТРОЙКА ИНДЕКСОВ (чтобы исключить ошибку "любая кнопка")
         spotIndexMap.Clear();
         for (int i = 0; i < TowerPositions.Count; i++)
         {
             var pos = TowerPositions[i];
             if (pos == null) continue;
 
-            pos.Index = i; // Принудительно ставим уникальный индекс
+            pos.Index = i;
             if (pos.Spot != null)
             {
-                spotIndexMap[pos.Spot] = i; // Маппинг Объект -> Индекс
+                spotIndexMap[pos.Spot] = i;
             }
         }
 
-        // UI настройки
         if (ActionPanel != null) ActionPanel.SetActive(true);
         if (ActionText != null) ActionText.text = "ИГРАТЬ";
         if (ActionButton != null)
@@ -67,7 +65,6 @@ public class GameManager : MonoBehaviour
         if (!isGameStarted || world == null) return;
         world.Update();
 
-        // 🎯 Рейкаст работает ВСЕГДА при клике (и для покупки, и для апгрейда)
         if (Input.GetMouseButtonDown(0))
         {
             if (EventSystem.current.IsPointerOverGameObject()) return;
@@ -83,7 +80,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // Ищет индекс места по объекту (Spot) или его детям (башне)
     int GetSpotIndexFromHit(GameObject obj)
     {
         GameObject current = obj;
@@ -99,7 +95,6 @@ public class GameManager : MonoBehaviour
 
     void OnBuyTowerClicked()
     {
-        // Если уже в режиме - выходим
         if (IsPlacementMode)
         {
             IsPlacementMode = false;
@@ -107,7 +102,6 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        // Проверка золота
         var player = world?.Query<PlayerComponent>().FirstOrDefault();
         if (player != null && player.Get<PlayerComponent>().Gold >= Settings.BaseTowerCost)
         {
@@ -133,25 +127,21 @@ public class GameManager : MonoBehaviour
             bool isOccupied = placementSystem?.IsSpotOccupied(pos.Index) ?? false;
             bool isAvailable = IsPlacementMode && !isOccupied;
 
-            // Красим сферу (Spot)
             if (pos.SphereRenderer != null)
             {
                 Color c = isAvailable ? Color.green : (isOccupied ? Color.gray : Color.white);
                 var block = new MaterialPropertyBlock();
-                block.SetColor("_Color", c); // Для URP: "_BaseColor"
+                block.SetColor("_Color", c);
                 pos.SphereRenderer.SetPropertyBlock(block);
             }
-            // Масштаб
             pos.Spot.transform.localScale = Vector3.one * (isAvailable ? 1.25f : 1.0f);
         }
     }
 
-    // 🧠 ГЛАВНАЯ ЛОГИКА КЛИКА
     public void OnTowerClicked(int index)
     {
         if (IsPlacementMode)
         {
-            // РЕЖИМ ПОКУПКИ: Ставим башню только на ПУСТОЕ место
             if (placementSystem?.IsSpotOccupied(index) == true)
             {
                 Debug.Log("Место занято!");
@@ -160,16 +150,15 @@ public class GameManager : MonoBehaviour
 
             if (placementSystem?.TryPlaceNewTower(index) == true)
             {
-                IsPlacementMode = false; // Выключаем режим после успешной стройки
+                IsPlacementMode = false;
                 UpdateSpotVisuals();
             }
         }
         else
         {
-            // ОБЫЧНЫЙ РЕЖИМ: Улучшаем башню, если она есть
             if (placementSystem?.IsSpotOccupied(index) == true)
             {
-                placementSystem?.OnTowerClicked(index); // Вызов апгрейда
+                placementSystem?.OnTowerClicked(index);
             }
             else
             {
@@ -178,7 +167,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // Остальной код (StartGame, Reset и т.д.) без изменений
     public void StartGame()
     {
         if (isGameStarted) return;
@@ -205,7 +193,6 @@ public class GameManager : MonoBehaviour
                                  ActionPanel = ActionPanel, ActionButton = ActionButton, ActionText = ActionText
         });
 
-        // Передаем список мест в систему
         placementSystem = new TowerPlacementSystem { Settings = Settings, TowerPositions = TowerPositions };
 
         world.AddSystem(new SpawnSystem { PathPoints = PathPoints, Settings = Settings });

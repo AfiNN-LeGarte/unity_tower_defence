@@ -55,7 +55,6 @@ public class SpawnSystem : BaseSystem
             {
                 wave.WaveActive = false;
 
-                // Если это была последняя волна - завершаем игру победой
                 if (wave.CurrentWave >= wave.TotalWaves)
                 {
                     if (gameState != null)
@@ -63,7 +62,6 @@ public class SpawnSystem : BaseSystem
                         var state = gameState.Get<GameStateComponent>();
                         state.IsGameOver = true;
                         state.IsVictory = true; 
-                        // UI больше не трогаем здесь. Этим займётся UISystem на следующем кадре.
                     }
                     return;
                 }

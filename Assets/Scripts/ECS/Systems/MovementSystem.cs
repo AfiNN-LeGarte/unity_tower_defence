@@ -48,9 +48,8 @@ public class MovementSystem : BaseSystem
             targetPos.y = pos.Value.y;
             Vector3 dir = (targetPos - pos.Value).normalized;
 
-            // 1️⃣ ОТТАЛКИВАНИЕ ОТ ДРУГИХ ВРАГОВ (Разделение)
-            float sepRadius = 1.2f;  // Дистанция комфортной близости
-            float sepStrength = 1.5f; // Сила отталкивания
+            float sepRadius = 1.2f;
+            float sepStrength = 1.5f;
             foreach (var other in allEnemies)
             {
                 if (entity.Id == other.Id) continue;
@@ -62,7 +61,6 @@ public class MovementSystem : BaseSystem
                 }
             }
 
-            // 2️⃣ ОТТАЛКИВАНИЕ ОТ БАШЕН (Ваша старая логика, оптимизированная)
             foreach (var tower in towers)
             {
                 float dist = Vector3.Distance(pos.Value, tower.Get<PositionComponent>().Value);
@@ -74,21 +72,18 @@ public class MovementSystem : BaseSystem
                 }
             }
 
-            // 3️⃣ ПОКАЧИВАНИЕ (Sway)
             if (Settings.EnemySwayStrength > 0.01f)
             {
-                dir.y = 0; // Работаем в плоскости XZ
-                Vector3 right = new Vector3(-dir.z, 0, dir.x).normalized; // Перпендикуляр
+                dir.y = 0;
+                Vector3 right = new Vector3(-dir.z, 0, dir.x).normalized;
                 float sway = Mathf.Sin(Time.time * Settings.EnemySwaySpeed + entity.Id * 0.7f) * Settings.EnemySwayStrength;
                 dir += right * sway;
             }
 
-            // Нормализация и движение
             dir.y = 0;
             dir.Normalize();
             pos.Value += dir * move.Speed * Time.deltaTime;
 
-            // Плавный поворот (исправленный Slerp -> RotateTowards)
             if (entity.Has<RotationComponent>())
             {
                 var rot = entity.Get<RotationComponent>();
@@ -100,7 +95,6 @@ public class MovementSystem : BaseSystem
                 }
             }
 
-            // Проверка достижения вейпоинта
             if (Vector3.Distance(new Vector3(pos.Value.x, 0, pos.Value.z), new Vector3(targetPos.x, 0, targetPos.z)) < Settings.PathCheckDistance)
                 path.Waypoints.Dequeue();
         }

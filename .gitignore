@@ -4,17 +4,46 @@ Library/
 Temp/
 Obj/
 Build/
-Logs/
+Builds/
 *.unityproj
 *.sln
 *.user
 *.userprefs
 *.pidb
-*.booproj
-*.svd
 *.pdb
 *.meta
-*.unitypackage
-[Tt]humbs.db
-.DS_Store
+*.DS_Store
+[C-c]ache/
+[L-l]og/
+
+# Compiled and build artifacts
+*.dll
+*.exe
+*.pdb
+*.mdb
+*.pidb
+*.so
+*.dylib
+*.class
+
+# Dependencies
+Packages/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
 ```

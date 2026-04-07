@@ -44,7 +44,6 @@ public class TowerPlacementSystem : BaseSystem
         }
     }
 
-    // 🟢 ТОЛЬКО для покупки (двухэтапный режим)
     public bool TryPlaceNewTower(int spotIndex)
     {
         int cost = Settings.BaseTowerCost;
@@ -68,7 +67,6 @@ public class TowerPlacementSystem : BaseSystem
         return true;
     }
 
-    // 🔵 ТОЛЬКО для апгрейда (клик по существующей башне)
     public void OnTowerClicked(int spotIndex)
     {
         var player = World.Query<PlayerComponent>().FirstOrDefault();
