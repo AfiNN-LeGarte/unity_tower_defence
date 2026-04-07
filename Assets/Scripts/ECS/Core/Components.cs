@@ -52,15 +52,6 @@ public class TowerComponent : Component
     public int SpotIndex;       // Индекс позиции
 }
 
-public class TowerSlotComponent : Component
-{
-    public int SlotIndex;
-    public bool IsOccupied;
-    public int TowerEntityId;
-    public Vector3 Position;
-    public int TowerLevel;      // Для улучшения
-}
-
 public class PlayerComponent : Component
 {
     public int Gold;

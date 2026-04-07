@@ -1,137 +1,96 @@
 using UnityEngine;
-using UnityEngine.UI;
-using System.Collections.Generic;
 using System.Linq;
 
 public class TowerPlacementSystem : BaseSystem
 {
-    public GameSettings Settings; // ✅ Настройки
-    
-    private bool _initialized = false;
-    private readonly Dictionary<TowerPosition, Button> _buttons = new();
-    private PlayerComponent _playerCache = null;
+    public GameSettings Settings;
 
     public override void Execute()
     {
+        if (Settings == null) return;
 
         var gameState = World.Query<GameStateComponent>().FirstOrDefault();
-        if (gameState != null && gameState.Get<GameStateComponent>().IsGameOver)
-        {
-            foreach (var btn in _buttons.Values)
-            {
-                if (btn != null && btn.gameObject != null)
-                    btn.interactable = false;
-            }
-            return;
-        }
+        if (gameState?.Get<GameStateComponent>().IsGameOver == true) return;
 
-        if (_playerCache == null)
-        {
-            var player = World.Query<PlayerComponent>().FirstOrDefault();
-            if (player != null)
-                _playerCache = player.Get<PlayerComponent>();
-        }
+        var player = World.Query<PlayerComponent>().FirstOrDefault();
+        if (player == null) return;
+        var playerComp = player.Get<PlayerComponent>();
 
-        if (_playerCache == null) return;
-
-        if (!_initialized)
-        {
-            InitializeButtons();
-            _initialized = true;
-        }
-
-        UpdateButtons(_playerCache.Gold);
-    }
-
-    void InitializeButtons()
-    {
         var ui = World.Query<UIComponent>().FirstOrDefault();
         if (ui == null) return;
 
-        var uiComp = ui.Get<UIComponent>();
-        if (uiComp.TowerPositions == null) return;
-
-        foreach (var pos in uiComp.TowerPositions)
+        foreach (var pos in ui.Get<UIComponent>().TowerPositions)
         {
-            if (pos == null || pos.Button == null) continue;
+            if (pos == null || pos.Button == null || !pos.IsEnabled) continue;
 
-            _buttons[pos] = pos.Button;
-            var position = pos;
+            var tower = World.Query<TowerComponent>()
+                .FirstOrDefault(e => e.Get<TowerComponent>().SpotIndex == pos.Index);
 
-            pos.Button.onClick.AddListener(() => OnTowerClicked(position));
+            bool isOccupied = tower != null;
+            int cost = isOccupied ? GetUpgradeCost(tower.Get<TowerComponent>().Level) : Settings.BaseTowerCost;
+            bool canAfford = playerComp.Gold >= cost;
+
+            pos.Button.interactable = canAfford;
+
+            if (pos.CostText != null)
+            {
+                if (isOccupied)
+                {
+                    var level = tower.Get<TowerComponent>().Level;
+                    pos.CostText.text = level >= 3 ? "MAX" : $"UP {cost}";
+                    pos.CostText.color = canAfford && level < 3 ? Color.green : Color.red;
+                }
+                else
+                {
+                    pos.CostText.text = $"Buy {cost}";
+                    pos.CostText.color = canAfford ? Color.white : Color.red;
+                }
+            }
         }
     }
 
-    void UpdateButtons(int playerGold)
+    public void OnTowerClicked(int spotIndex)
     {
-        foreach (var kvp in _buttons)
-        {
-            var pos = kvp.Key;
-            var btn = kvp.Value;
+        if (Settings == null) return;
 
-            if (btn == null || btn.gameObject == null) continue;
+        var player = World.Query<PlayerComponent>().FirstOrDefault();
+        if (player == null) return;
+        var playerComp = player.Get<PlayerComponent>();
 
-            btn.interactable = CanInteract(pos, playerGold);
-        }
-    }
+        var ui = World.Query<UIComponent>().FirstOrDefault();
+        if (ui == null) return;
 
-    bool CanInteract(TowerPosition pos, int playerGold)
-    {
-        if (!pos.IsEnabled) return false;
+        var pos = ui.Get<UIComponent>().TowerPositions.FirstOrDefault(p => p.Index == spotIndex);
+        if (pos == null) return;
 
-        if (pos.IsOccupied)
-        {
-            return pos.TowerLevel < 3 && playerGold >= GetUpgradeCost(pos.TowerLevel);
-        }
+        var tower = World.Query<TowerComponent>()
+            .FirstOrDefault(e => e.Get<TowerComponent>().SpotIndex == spotIndex);
+
+        if (tower != null)
+            UpgradeTower(tower, pos, playerComp);
         else
-        {
-            return playerGold >= GetTowerCost(pos.TowerLevel);
-        }
+            PlaceTower(pos, playerComp);
     }
 
-    void OnTowerClicked(TowerPosition pos)
+    void PlaceTower(TowerPosition pos, PlayerComponent player)
     {
-        if (_playerCache == null) return;
+        int cost = Settings.BaseTowerCost;
+        if (player.Gold < cost) return;
 
-        if (pos.IsOccupied)
-        {
-            UpgradeTower(pos);
-        }
-        else
-        {
-            PlaceTower(pos);
-        }
-    }
-
-    void PlaceTower(TowerPosition pos)
-    {
-        var towerCost = GetTowerCost(pos.TowerLevel);
-        if (_playerCache.Gold < towerCost) return;
-
+        var config = GetTowerConfig(1);
         var tower = World.CreateEntity();
-        
 
-        var config = GetTowerConfig(pos.TowerLevel);
-        
         tower.Add(new PositionComponent { Value = pos.Position });
         tower.Add(new RotationComponent { Value = Quaternion.identity });
         tower.Add(new TowerComponent
         {
-            Level = pos.TowerLevel,
+            Level = 1,
+            SpotIndex = pos.Index,
             Damage = config.Damage,
             Range = config.Range,
             Cooldown = config.Cooldown,
             CooldownTimer = 0f,
-            TargetId = -1,
-            SpotIndex = pos.GetHashCode()
-        });
-        tower.Add(new TowerSlotComponent
-        {
-            SlotIndex = pos.GetHashCode(),
-            IsOccupied = true,
-            TowerEntityId = tower.Id,
-            Position = pos.Position,
-            TowerLevel = pos.TowerLevel
+            TargetId = -1
         });
 
         if (config.Prefab != null)
@@ -140,100 +99,46 @@ public class TowerPlacementSystem : BaseSystem
             tower.Add(new UnityObjectComponent { Obj = obj });
         }
 
-        pos.IsOccupied = true;
-        pos.TowerEntityId = tower.Id;
-        _playerCache.Gold -= towerCost;
-
-        Debug.Log($"🗼 Башня уровня {pos.TowerLevel} размещена! Урон={config.Damage}, Радиус={config.Range}");
+        player.Gold -= cost;
     }
 
-    void UpgradeTower(TowerPosition pos)
+    void UpgradeTower(Entity tower, TowerPosition pos, PlayerComponent player)
     {
-        if (pos.TowerLevel >= 3) return;
+        var tComp = tower.Get<TowerComponent>();
+        if (tComp.Level >= 3) return;
 
-        var upgradeCost = GetUpgradeCost(pos.TowerLevel);
-        if (_playerCache.Gold < upgradeCost) return;
+        int cost = GetUpgradeCost(tComp.Level);
+        if (player.Gold < cost) return;
 
-        var tower = World.GetAll().FirstOrDefault(e => 
-            e.IsActive && 
-            e.Has<TowerComponent>() && 
-            e.Get<TowerComponent>().SpotIndex == pos.GetHashCode());
+        int newLevel = tComp.Level + 1;
+        var config = GetTowerConfig(newLevel);
 
-        if (tower != null)
+        tComp.Level = newLevel;
+        tComp.Damage = config.Damage;
+        tComp.Range = config.Range;
+        tComp.Cooldown = config.Cooldown;
+
+        if (tower.Has<UnityObjectComponent>())
         {
-            var tComp = tower.Get<TowerComponent>();
-            pos.TowerLevel++;
-            tComp.Level = pos.TowerLevel;
-
-
-            var config = GetTowerConfig(pos.TowerLevel);
-            tComp.Damage = config.Damage;
-            tComp.Range = config.Range;
-            tComp.Cooldown = config.Cooldown;
-
-            if (tower.Has<UnityObjectComponent>())
-            {
-                var view = tower.Get<UnityObjectComponent>();
-                if (view.Obj != null)
-                {
-                    Object.Destroy(view.Obj);
-                    if (config.Prefab != null)
-                    {
-                        var newObj = Object.Instantiate(config.Prefab, pos.Position, Quaternion.identity);
-                        view.Obj = newObj;
-                    }
-                }
-            }
-
-            _playerCache.Gold -= upgradeCost;
-            Debug.Log($"⬆️ Башня улучшена до уровня {pos.TowerLevel}! Урон={config.Damage}, Радиус={config.Range}");
+            var view = tower.Get<UnityObjectComponent>();
+            if (view.Obj != null) Object.Destroy(view.Obj);
+            if (config.Prefab != null)
+                view.Obj = Object.Instantiate(config.Prefab, pos.Position, Quaternion.identity);
         }
+
+        player.Gold -= cost;
     }
 
-
-    int GetTowerCost(int level)
+    int GetUpgradeCost(int level)
     {
-        return Settings.BaseTowerCost;
+        return Mathf.RoundToInt(Settings.BaseTowerCost * Settings.UpgradeCostMultiplier *
+            Mathf.Pow(Settings.UpgradeCostIncrease, level - 1));
     }
-
-
-    int GetUpgradeCost(int currentLevel)
-    {
-
-
-        float cost = Settings.BaseTowerCost * Settings.UpgradeCostMultiplier;
-        cost *= Mathf.Pow(Settings.UpgradeCostIncrease, currentLevel - 1);
-        
-        return Mathf.RoundToInt(cost);
-    }
-
 
     TowerLevelConfig GetTowerConfig(int level)
     {
-        foreach (var config in Settings.TowerConfigs)
-        {
-            if (config.Level == level)
-                return config;
-        }
-        
-
-        Debug.LogWarning($"⚠️ TowerConfig для уровня {level} не найден! Используем значения по умолчанию.");
-        return new TowerLevelConfig 
-        { 
-            Level = level, 
-            Damage = 20f, 
-            Range = 10f, 
-            Cooldown = 2f 
-        };
-    }
-
-    public override void Cleanup()
-    {
-        foreach (var btn in _buttons.Values)
-        {
-            if (btn != null)
-                btn.onClick.RemoveAllListeners();
-        }
-        _buttons.Clear();
+        foreach (var c in Settings.TowerConfigs)
+            if (c.Level == level) return c;
+        return new TowerLevelConfig { Level = level, Damage = 20f, Range = 10f, Cooldown = 2f };
     }
 }

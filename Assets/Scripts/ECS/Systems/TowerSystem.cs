@@ -3,16 +3,14 @@ using System.Linq;
 
 public class TowerSystem : BaseSystem
 {
-    public GameObject ProjectilePrefab;
     public GameSettings Settings;
 
-    
     public override void Execute()
     {
+        if (Settings == null) return;
 
         var gameState = World.Query<GameStateComponent>().FirstOrDefault();
-        if (gameState != null && gameState.Get<GameStateComponent>().IsGameOver)
-            return;
+        if (gameState?.Get<GameStateComponent>().IsGameOver == true) return;
 
         foreach (var tower in World.Query<TowerComponent, PositionComponent>().ToList())
         {
@@ -22,54 +20,32 @@ public class TowerSystem : BaseSystem
             tComp.CooldownTimer -= Time.deltaTime;
             if (tComp.CooldownTimer > 0) continue;
 
-            int targetId = -1;
+            Entity target = null;
             float minDist = tComp.Range;
 
-
-            var enemies = World.Query<EnemyComponent, PositionComponent, HealthComponent>().ToList();
-            
-            foreach (var enemy in enemies)
+            foreach (var enemy in World.Query<EnemyComponent, PositionComponent, HealthComponent>().ToList())
             {
-                var ePos = enemy.Get<PositionComponent>();
-                var eHealth = enemy.Get<HealthComponent>();
-                
-                if (eHealth.Current <= 0) continue;
-
-                var dist = Vector3.Distance(tPos.Value, ePos.Value);
-                
-                if (dist <= minDist)
+                if (enemy.Get<HealthComponent>().Current <= 0) continue;
+                float dist = Vector3.Distance(tPos.Value, enemy.Get<PositionComponent>().Value);
+                if (dist < minDist)
                 {
                     minDist = dist;
-                    targetId = enemy.Id;
+                    target = enemy;
                 }
             }
 
-
-            if (targetId != -1)
+            if (target != null)
             {
-                tComp.TargetId = targetId;
+                tComp.TargetId = target.Id;
                 tComp.CooldownTimer = tComp.Cooldown;
 
-                var projectile = World.CreateEntity();
-                projectile.Add(new PositionComponent { Value = tPos.Value });
-                projectile.Add(new RotationComponent { Value = Quaternion.identity });
-                projectile.Add(new MovementComponent 
-                { 
-                    Speed = 20f,
-                    Direction = Vector3.forward,
-                    IsMoving = true
-                });
-                projectile.Add(new ProjectileComponent 
-                { 
-                    TargetId = targetId,
-                    Damage = tComp.Damage
-                });
+                var proj = World.CreateEntity();
+                proj.Add(new PositionComponent { Value = tPos.Value });
+                proj.Add(new ProjectileComponent { TargetId = target.Id, Damage = tComp.Damage });
+                proj.Add(new MovementComponent { Speed = 20f, Direction = Vector3.forward, IsMoving = true });
 
-                if (ProjectilePrefab != null)
-                {
-                    var obj = Object.Instantiate(ProjectilePrefab, tPos.Value, Quaternion.identity);
-                    projectile.Add(new UnityObjectComponent { Obj = obj });
-                }
+                if (PrefabDatabase.ProjectilePrefab != null)
+                    proj.Add(new UnityObjectComponent { Obj = Object.Instantiate(PrefabDatabase.ProjectilePrefab, tPos.Value, Quaternion.identity) });
             }
         }
     }
